@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Shield, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { confirmExistingEmailAccount } from "@/lib/auth-recovery.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const confirmExistingAccount = useServerFn(confirmExistingEmailAccount);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,12 +34,14 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth`,
             data: { full_name: fullName },
           },
         });
@@ -44,7 +49,20 @@ function AuthPage() {
         toast.success("Account created", { description: "You're signed in." });
         navigate({ to: "/dashboard" });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        if (error?.code === "email_not_confirmed") {
+          const recovery = await confirmExistingAccount({
+            data: { email: normalizedEmail, password },
+          });
+
+          if (recovery.recovered) {
+            const retry = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+            if (retry.error) throw retry.error;
+            toast.success("Account verified", { description: "You're signed in now." });
+            navigate({ to: "/dashboard" });
+            return;
+          }
+        }
         if (error) throw error;
         navigate({ to: "/dashboard" });
       }
