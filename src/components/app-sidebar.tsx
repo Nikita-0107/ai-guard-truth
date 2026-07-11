@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Shield, PlusCircle, History, Settings, LogOut } from "lucide-react";
+import { Shield, PlusCircle, History, Settings, LogOut, Activity } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Sidebar,
@@ -20,7 +20,8 @@ export function AppSidebar() {
   const qc = useQueryClient();
 
   const items = [
-    { title: "New Investigation", url: "/dashboard", icon: PlusCircle },
+    { title: "Threat Intelligence", url: "/dashboard", icon: Activity },
+    { title: "New Investigation", url: "/investigate", icon: PlusCircle },
     { title: "Previous Investigations", url: "/dashboard?view=history", icon: History },
     { title: "Settings", url: "/dashboard?view=settings", icon: Settings },
   ];
