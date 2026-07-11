@@ -977,6 +977,8 @@ const DNA_BASE: Record<ScamCategoryId, Record<string, number>> = {
   upi:            { Authority: 65,  Fear: 55, Urgency: 80, Financial: 90, Isolation: 40 },
   job:            { Authority: 55,  Fear: 25, Urgency: 70, Financial: 75, Isolation: 60 },
   phishing:       { Authority: 80,  Fear: 60, Urgency: 75, Financial: 65, Isolation: 50 },
+  suspicious:     { Authority: 25,  Fear: 20, Urgency: 35, Financial: 25, Isolation: 15 },
+  possible_scam:  { Authority: 55,  Fear: 45, Urgency: 60, Financial: 55, Isolation: 35 },
   safe:           { Authority:  5,  Fear:  5, Urgency: 10, Financial:  5, Isolation:  5 },
 };
 
