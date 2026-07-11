@@ -1028,15 +1028,68 @@ export function generateScamDNA(
 }
 
 /* =========================================================================
- * 7. Assemble report
+ * 7. Unified banding → InvestigationResult
+ *
+ * The score band is the SINGLE SOURCE OF TRUTH. It decides riskLevel,
+ * scamCategory label, actionBadge, and (indirectly) the recommendation set
+ * and DNA profile. Every UI component reads from this one object, so the
+ * risk-score card, summary, DNA, recommendations and badge can never drift
+ * out of sync.
+ *
+ *   0-20   → Safe        · "Safe / Legitimate"   · No Immediate Action Required
+ *   21-40  → Low         · "Suspicious"          · Exercise Caution
+ *   41-70  → Medium      · "Possible Scam"       · Verify Before Taking Action
+ *   71-89  → High        · <Detected Scam Type>  · Do Not Respond
+ *   90-100 → Critical    · <Detected Scam Type>  · Immediate Action Recommended
  * ========================================================================= */
 
-function riskLevelFromScore(score: number): RiskLevel {
-  if (score >= 85) return "critical";
-  if (score >= 65) return "high";
-  if (score >= 40) return "medium";
-  if (score >= 20) return "low";
-  return "safe";
+interface BandDecision {
+  riskLevel: RiskLevel;
+  displayCategoryId: ScamCategoryId;
+  displayCategoryLabel: string;
+  actionBadge: ActionBadge;
+}
+
+function decideBand(score: number, detectedTypeId: ScamCategoryId): BandDecision {
+  if (score <= 20) {
+    return {
+      riskLevel: "safe",
+      displayCategoryId: "safe",
+      displayCategoryLabel: CATEGORY_LABEL.safe,
+      actionBadge: { label: "No Immediate Action Required", tone: "safe" },
+    };
+  }
+  if (score <= 40) {
+    return {
+      riskLevel: "low",
+      displayCategoryId: "suspicious",
+      displayCategoryLabel: CATEGORY_LABEL.suspicious,
+      actionBadge: { label: "Exercise Caution", tone: "caution" },
+    };
+  }
+  if (score <= 70) {
+    return {
+      riskLevel: "medium",
+      displayCategoryId: "possible_scam",
+      displayCategoryLabel: CATEGORY_LABEL.possible_scam,
+      actionBadge: { label: "Verify Before Taking Action", tone: "verify" },
+    };
+  }
+  const typeId = detectedTypeId === "safe" ? "phishing" : detectedTypeId;
+  if (score <= 89) {
+    return {
+      riskLevel: "high",
+      displayCategoryId: typeId,
+      displayCategoryLabel: CATEGORY_LABEL[typeId],
+      actionBadge: { label: "Do Not Respond", tone: "warn" },
+    };
+  }
+  return {
+    riskLevel: "critical",
+    displayCategoryId: typeId,
+    displayCategoryLabel: CATEGORY_LABEL[typeId],
+    actionBadge: { label: "Immediate Action Recommended", tone: "critical" },
+  };
 }
 
 function computeConfidence(
@@ -1047,10 +1100,10 @@ function computeConfidence(
   if (active.length === 0) {
     return {
       confidence: 70,
-      reason: "No scam indicators fired. Confidence is moderate because rule-based engines cannot see intent that isn't spelled out.",
+      reason:
+        "No scam indicators fired. Confidence is moderate because rule-based engines cannot see intent that isn't spelled out.",
     };
   }
-  // More independent indicators + higher score → higher confidence.
   const distinctTypes = new Set(ctx.entities.map((e) => e.type)).size;
   const raw = 55 + active.length * 6 + distinctTypes * 3 + (score >= 80 ? 6 : 0);
   const confidence = Math.max(45, Math.min(99, raw));
@@ -1058,46 +1111,64 @@ function computeConfidence(
   return { confidence, reason };
 }
 
-function buildReport(text: string): InvestigationReport {
+function buildResult(text: string): InvestigationResult {
   const trimmed = text.trim();
+
   if (trimmed.length === 0) {
+    const band = decideBand(0, "safe");
     return {
-      riskScore: 5,
-      riskLevel: "safe",
-      scamCategory: CATEGORY_LABEL.safe,
-      categoryId: "safe",
-      summary: generateSummary("safe", [], 5),
+      riskScore: 0,
+      riskLevel: band.riskLevel,
+      scamCategory: band.displayCategoryLabel,
+      categoryId: band.displayCategoryId,
+      detectedTypeId: "safe",
+      summary: generateSummary("safe", [], 0),
       evidence: [],
       scamDNA: generateScamDNA("safe", []),
       recommendations: generateRecommendations("safe"),
+      actionBadge: band.actionBadge,
       confidence: 70,
       confidenceReason: "No content was provided to analyse.",
     };
   }
 
   const ctx = buildIndicators(text);
-  const { score, activeIndicators } = calculateRisk(ctx);
-  const activeSet = new Set(activeIndicators);
-  const category = activeIndicators.length === 0 ? "safe" : classifyScam(activeSet, ctx);
+  const { score: rawScore, activeIndicators } = calculateRisk(ctx);
+  const detectedTypeId: ScamCategoryId =
+    activeIndicators.length === 0 ? "safe" : classifyScam(new Set(activeIndicators), ctx);
+
+  // If no indicators fired, force the score into the safe band.
+  const score = detectedTypeId === "safe" ? Math.min(rawScore, 15) : rawScore;
+  const band = decideBand(score, detectedTypeId);
+
+  // Recommendations & DNA come from the banded id so cards stay consistent
+  // with the headline verdict (e.g. a medium score shows "Possible Scam"
+  // recommendations, never scam-type-specific ones that would contradict it).
+  const recommendations = generateRecommendations(band.displayCategoryId);
+  const scamDNA = generateScamDNA(band.displayCategoryId, activeIndicators);
+  const summary = generateSummary(band.displayCategoryId, activeIndicators, score);
   const evidence = generateEvidence(ctx);
-  const summary = generateSummary(category, activeIndicators, score);
-  const scamDNA = generateScamDNA(category, activeIndicators);
-  const recommendations = generateRecommendations(category);
   const { confidence, reason } = computeConfidence(activeIndicators, score, ctx);
 
   return {
-    riskScore: category === "safe" ? Math.min(score, 15) : score,
-    riskLevel: category === "safe" ? "safe" : riskLevelFromScore(score),
-    scamCategory: CATEGORY_LABEL[category],
-    categoryId: category,
+    riskScore: score,
+    riskLevel: band.riskLevel,
+    scamCategory: band.displayCategoryLabel,
+    categoryId: band.displayCategoryId,
+    detectedTypeId,
     summary,
     evidence,
     scamDNA,
     recommendations,
+    actionBadge: band.actionBadge,
     confidence,
     confidenceReason: reason,
   };
 }
+
+// Backwards-compatible alias.
+const buildReport = buildResult;
+
 
 /* =========================================================================
  * 8. Public analyzers (swap points for a future real model)
