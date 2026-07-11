@@ -52,21 +52,40 @@ export type ScamCategoryId =
   | "upi"
   | "job"
   | "phishing"
+  | "suspicious"
+  | "possible_scam"
   | "safe";
 
-export interface InvestigationReport {
+export type ActionBadgeTone = "safe" | "caution" | "verify" | "warn" | "critical";
+
+export interface ActionBadge {
+  label: string;
+  tone: ActionBadgeTone;
+}
+
+/**
+ * The single unified decision object every UI component derives from.
+ * `InvestigationReport` is kept as an alias for backwards compatibility.
+ */
+export interface InvestigationResult {
   riskScore: number;
   riskLevel: RiskLevel;
   scamCategory: string;
+  /** Banded id — matches the display label. */
   categoryId: ScamCategoryId;
+  /** Underlying detected pattern — used for DNA and follow-up questions. */
+  detectedTypeId: ScamCategoryId;
   summary: string;
   evidence: EvidenceItem[];
   scamDNA: ScamDNATrait[];
   recommendations: Recommendation[];
+  actionBadge: ActionBadge;
   /** 0-100: how confident the engine is in its verdict */
   confidence: number;
   confidenceReason: string;
 }
+
+export type InvestigationReport = InvestigationResult;
 
 /* =========================================================================
  * 1. Entity extraction
