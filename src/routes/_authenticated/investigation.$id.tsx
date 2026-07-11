@@ -212,7 +212,11 @@ function ReportPage() {
         </Section>
 
         {/* Follow-up chat */}
-        <FollowUpChat />
+        <FollowUpChat
+          categoryId={report.raw_report?.categoryId ?? "safe"}
+          category={report.scam_category ?? "Safe / Legitimate"}
+        />
+
       </main>
     </div>
   );
