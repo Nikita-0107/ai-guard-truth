@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Shield, PlusCircle, History, Settings, LogOut } from "lucide-react";
+import { Shield, PlusCircle, History, Settings, LogOut, Activity } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Sidebar,
