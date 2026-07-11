@@ -946,6 +946,18 @@ const RECS_BY_CATEGORY: Record<ScamCategoryId, Recommendation[]> = {
     { title: "Continue exercising caution", description: "Still verify the sender directly if the message asks for money, credentials or personal details.", urgency: "info" },
     { title: "When in doubt, ask again", description: "You can always run another investigation on any suspicious follow-up.", urgency: "info" },
   ],
+  suspicious: [
+    { title: "Exercise caution", description: "A few signals stand out but there isn't enough to confirm a scam. Slow down before responding.", urgency: "warn" },
+    { title: "Verify the sender", description: "Contact the person or organisation through an official channel you already trust.", urgency: "warn" },
+    { title: "Do not share credentials", description: "Never share OTPs, PINs, passwords or card details based on this message alone.", urgency: "info" },
+    { title: "Save the message", description: "Keep the original for reference in case the situation escalates.", urgency: "info" },
+  ],
+  possible_scam: [
+    { title: "Verify before taking action", description: "Multiple scam-like signals are present. Confirm through a trusted, independent channel before doing anything.", urgency: "warn" },
+    { title: "Do not send money", description: "Do not transfer funds, pay any 'fee' or click links until you have independently verified the request.", urgency: "critical" },
+    { title: "Ask someone you trust", description: "Show the message to a family member, colleague or your bank before responding.", urgency: "warn" },
+    { title: "Report if it escalates", description: "If pressure increases or money is requested, report at cybercrime.gov.in or 1930.", urgency: "info" },
+  ],
 };
 
 export function generateRecommendations(category: ScamCategoryId): Recommendation[] {
