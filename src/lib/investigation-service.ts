@@ -877,10 +877,17 @@ export function generateSummary(
         ? parts[0]!
         : parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
 
+  if (category === "suspicious") {
+    return `This message ${joined}. A few signals stand out, but there isn't enough evidence to confirm a specific scam yet — treat it as suspicious and verify before responding.`;
+  }
+  if (category === "possible_scam") {
+    return `This message ${joined}. The combination of signals is consistent with a possible scam. Do not act on it until you have independently verified the sender through a trusted channel.`;
+  }
+
   const verdict =
-    score >= 85
+    score >= 90
       ? "Multiple high-risk indicators strongly suggest"
-      : score >= 65
+      : score >= 71
         ? "The combination of indicators is consistent with"
         : "There are early signs consistent with";
 
