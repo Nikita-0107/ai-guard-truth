@@ -252,37 +252,52 @@ interface ChatMsg {
   text: string;
 }
 
-function FollowUpChat() {
+function FollowUpChat({
+  categoryId,
+  category,
+}: {
+  categoryId: ScamCategoryId;
+  category: string;
+}) {
+  const suggestions = getFollowUpQuestions(categoryId);
   const [messages, setMessages] = useState<ChatMsg[]>([
-    {
-      role: "ai",
-      text: "I've completed your investigation. Ask me anything about this scam, or share related suspicious activity you've seen.",
-    },
-    { role: "user", text: "FedEx also called me." },
-    {
-      role: "ai",
-      text: "Did they ask you to stay on the call continuously? That's a classic isolation tactic used together with the Digital Arrest pattern. Please block that number too — I can help you understand what they said if you share the details.",
-    },
+    { role: "ai", text: getIntroMessage(categoryId, category) },
   ]);
   const [input, setInput] = useState("");
 
-  const send = () => {
-    if (!input.trim()) return;
-    setMessages((m) => [...m, { role: "user", text: input.trim() }]);
+  const respondTo = (question: string): string => {
+    const q = question.toLowerCase();
+    if (categoryId === "safe") {
+      return "Based on the analysis, this content didn't match a known scam pattern. If anything about the sender still feels off, verify through an official channel before acting.";
+    }
+    if (q.includes("otp") || q.includes("code") || q.includes("pin")) {
+      return "Never share an OTP, PIN or password — sharing one is the same as approving the transaction. If you already did, contact your bank's fraud line immediately.";
+    }
+    if (q.includes("money") || q.includes("transfer") || q.includes("paid") || q.includes("sent")) {
+      return "If money was already transferred, call your bank now and file a complaint at cybercrime.gov.in or 1930 within 24 hours to maximise the chance of a freeze.";
+    }
+    if (q.includes("call") || q.includes("phone") || q.includes("number")) {
+      return "Block the number and do not call back. Scammers rotate numbers constantly — the identity on the call is never a reliable signal.";
+    }
+    if (q.includes("link") || q.includes("website") || q.includes("url")) {
+      return "Do not open the link. If you already did, close the tab, do not enter credentials, and run a virus scan if you downloaded anything.";
+    }
+    return `This is consistent with the ${category} pattern. Stop engaging with the sender, don't share any personal or financial details, and report the incident at cybercrime.gov.in or on 1930.`;
+  };
+
+  const send = (raw?: string) => {
+    const text = (raw ?? input).trim();
+    if (!text) return;
+    setMessages((m) => [...m, { role: "user", text }]);
     setInput("");
     setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        {
-          role: "ai",
-          text: "Thanks for the extra context. I'm not connected to a live AI yet — this is a demo response — but in production I'd correlate this with the current case and flag matching scam patterns.",
-        },
-      ]);
-    }, 800);
+      setMessages((m) => [...m, { role: "ai", text: respondTo(text) }]);
+    }, 600);
   };
 
   return (
     <section className="animate-fade-up glass-strong rounded-3xl overflow-hidden shadow-elegant">
+
       <div className="border-b border-border/40 px-6 py-4 flex items-center gap-2">
         <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-brand shadow-glow">
           <Bot className="h-4 w-4 text-primary-foreground" />
