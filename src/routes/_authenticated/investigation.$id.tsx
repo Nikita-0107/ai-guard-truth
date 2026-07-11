@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  ActionBadge,
   EvidenceItem,
   Recommendation,
   RiskLevel,
@@ -39,7 +40,11 @@ interface Report {
   evidence: EvidenceItem[];
   scam_dna: ScamDNATrait[];
   recommendations: Recommendation[];
-  raw_report: { categoryId?: ScamCategoryId } | null;
+  raw_report: {
+    categoryId?: ScamCategoryId;
+    detectedTypeId?: ScamCategoryId;
+    actionBadge?: ActionBadge;
+  } | null;
   investigation: {
     investigation_type: string;
     content: string | null;
