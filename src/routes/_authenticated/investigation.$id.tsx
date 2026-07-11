@@ -39,6 +39,7 @@ interface Report {
   evidence: EvidenceItem[];
   scam_dna: ScamDNATrait[];
   recommendations: Recommendation[];
+  raw_report: { categoryId?: ScamCategoryId } | null;
   investigation: {
     investigation_type: string;
     content: string | null;
