@@ -52,21 +52,40 @@ export type ScamCategoryId =
   | "upi"
   | "job"
   | "phishing"
+  | "suspicious"
+  | "possible_scam"
   | "safe";
 
-export interface InvestigationReport {
+export type ActionBadgeTone = "safe" | "caution" | "verify" | "warn" | "critical";
+
+export interface ActionBadge {
+  label: string;
+  tone: ActionBadgeTone;
+}
+
+/**
+ * The single unified decision object every UI component derives from.
+ * `InvestigationReport` is kept as an alias for backwards compatibility.
+ */
+export interface InvestigationResult {
   riskScore: number;
   riskLevel: RiskLevel;
   scamCategory: string;
+  /** Banded id — matches the display label. */
   categoryId: ScamCategoryId;
+  /** Underlying detected pattern — used for DNA and follow-up questions. */
+  detectedTypeId: ScamCategoryId;
   summary: string;
   evidence: EvidenceItem[];
   scamDNA: ScamDNATrait[];
   recommendations: Recommendation[];
+  actionBadge: ActionBadge;
   /** 0-100: how confident the engine is in its verdict */
   confidence: number;
   confidenceReason: string;
 }
+
+export type InvestigationReport = InvestigationResult;
 
 /* =========================================================================
  * 1. Entity extraction
@@ -753,6 +772,8 @@ const CATEGORY_LABEL: Record<ScamCategoryId, string> = {
   upi: "UPI Payment Scam",
   job: "Job Scam",
   phishing: "Phishing Website",
+  suspicious: "Suspicious",
+  possible_scam: "Possible Scam",
   safe: "Safe / Legitimate",
 };
 
@@ -856,10 +877,17 @@ export function generateSummary(
         ? parts[0]!
         : parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
 
+  if (category === "suspicious") {
+    return `This message ${joined}. A few signals stand out, but there isn't enough evidence to confirm a specific scam yet — treat it as suspicious and verify before responding.`;
+  }
+  if (category === "possible_scam") {
+    return `This message ${joined}. The combination of signals is consistent with a possible scam. Do not act on it until you have independently verified the sender through a trusted channel.`;
+  }
+
   const verdict =
-    score >= 85
+    score >= 90
       ? "Multiple high-risk indicators strongly suggest"
-      : score >= 65
+      : score >= 71
         ? "The combination of indicators is consistent with"
         : "There are early signs consistent with";
 
@@ -925,6 +953,18 @@ const RECS_BY_CATEGORY: Record<ScamCategoryId, Recommendation[]> = {
     { title: "Continue exercising caution", description: "Still verify the sender directly if the message asks for money, credentials or personal details.", urgency: "info" },
     { title: "When in doubt, ask again", description: "You can always run another investigation on any suspicious follow-up.", urgency: "info" },
   ],
+  suspicious: [
+    { title: "Exercise caution", description: "A few signals stand out but there isn't enough to confirm a scam. Slow down before responding.", urgency: "warn" },
+    { title: "Verify the sender", description: "Contact the person or organisation through an official channel you already trust.", urgency: "warn" },
+    { title: "Do not share credentials", description: "Never share OTPs, PINs, passwords or card details based on this message alone.", urgency: "info" },
+    { title: "Save the message", description: "Keep the original for reference in case the situation escalates.", urgency: "info" },
+  ],
+  possible_scam: [
+    { title: "Verify before taking action", description: "Multiple scam-like signals are present. Confirm through a trusted, independent channel before doing anything.", urgency: "warn" },
+    { title: "Do not send money", description: "Do not transfer funds, pay any 'fee' or click links until you have independently verified the request.", urgency: "critical" },
+    { title: "Ask someone you trust", description: "Show the message to a family member, colleague or your bank before responding.", urgency: "warn" },
+    { title: "Report if it escalates", description: "If pressure increases or money is requested, report at cybercrime.gov.in or 1930.", urgency: "info" },
+  ],
 };
 
 export function generateRecommendations(category: ScamCategoryId): Recommendation[] {
@@ -944,6 +984,8 @@ const DNA_BASE: Record<ScamCategoryId, Record<string, number>> = {
   upi:            { Authority: 65,  Fear: 55, Urgency: 80, Financial: 90, Isolation: 40 },
   job:            { Authority: 55,  Fear: 25, Urgency: 70, Financial: 75, Isolation: 60 },
   phishing:       { Authority: 80,  Fear: 60, Urgency: 75, Financial: 65, Isolation: 50 },
+  suspicious:     { Authority: 25,  Fear: 20, Urgency: 35, Financial: 25, Isolation: 15 },
+  possible_scam:  { Authority: 55,  Fear: 45, Urgency: 60, Financial: 55, Isolation: 35 },
   safe:           { Authority:  5,  Fear:  5, Urgency: 10, Financial:  5, Isolation:  5 },
 };
 
@@ -993,15 +1035,68 @@ export function generateScamDNA(
 }
 
 /* =========================================================================
- * 7. Assemble report
+ * 7. Unified banding → InvestigationResult
+ *
+ * The score band is the SINGLE SOURCE OF TRUTH. It decides riskLevel,
+ * scamCategory label, actionBadge, and (indirectly) the recommendation set
+ * and DNA profile. Every UI component reads from this one object, so the
+ * risk-score card, summary, DNA, recommendations and badge can never drift
+ * out of sync.
+ *
+ *   0-20   → Safe        · "Safe / Legitimate"   · No Immediate Action Required
+ *   21-40  → Low         · "Suspicious"          · Exercise Caution
+ *   41-70  → Medium      · "Possible Scam"       · Verify Before Taking Action
+ *   71-89  → High        · <Detected Scam Type>  · Do Not Respond
+ *   90-100 → Critical    · <Detected Scam Type>  · Immediate Action Recommended
  * ========================================================================= */
 
-function riskLevelFromScore(score: number): RiskLevel {
-  if (score >= 85) return "critical";
-  if (score >= 65) return "high";
-  if (score >= 40) return "medium";
-  if (score >= 20) return "low";
-  return "safe";
+interface BandDecision {
+  riskLevel: RiskLevel;
+  displayCategoryId: ScamCategoryId;
+  displayCategoryLabel: string;
+  actionBadge: ActionBadge;
+}
+
+function decideBand(score: number, detectedTypeId: ScamCategoryId): BandDecision {
+  if (score <= 20) {
+    return {
+      riskLevel: "safe",
+      displayCategoryId: "safe",
+      displayCategoryLabel: CATEGORY_LABEL.safe,
+      actionBadge: { label: "No Immediate Action Required", tone: "safe" },
+    };
+  }
+  if (score <= 40) {
+    return {
+      riskLevel: "low",
+      displayCategoryId: "suspicious",
+      displayCategoryLabel: CATEGORY_LABEL.suspicious,
+      actionBadge: { label: "Exercise Caution", tone: "caution" },
+    };
+  }
+  if (score <= 70) {
+    return {
+      riskLevel: "medium",
+      displayCategoryId: "possible_scam",
+      displayCategoryLabel: CATEGORY_LABEL.possible_scam,
+      actionBadge: { label: "Verify Before Taking Action", tone: "verify" },
+    };
+  }
+  const typeId = detectedTypeId === "safe" ? "phishing" : detectedTypeId;
+  if (score <= 89) {
+    return {
+      riskLevel: "high",
+      displayCategoryId: typeId,
+      displayCategoryLabel: CATEGORY_LABEL[typeId],
+      actionBadge: { label: "Do Not Respond", tone: "warn" },
+    };
+  }
+  return {
+    riskLevel: "critical",
+    displayCategoryId: typeId,
+    displayCategoryLabel: CATEGORY_LABEL[typeId],
+    actionBadge: { label: "Immediate Action Recommended", tone: "critical" },
+  };
 }
 
 function computeConfidence(
@@ -1012,10 +1107,10 @@ function computeConfidence(
   if (active.length === 0) {
     return {
       confidence: 70,
-      reason: "No scam indicators fired. Confidence is moderate because rule-based engines cannot see intent that isn't spelled out.",
+      reason:
+        "No scam indicators fired. Confidence is moderate because rule-based engines cannot see intent that isn't spelled out.",
     };
   }
-  // More independent indicators + higher score → higher confidence.
   const distinctTypes = new Set(ctx.entities.map((e) => e.type)).size;
   const raw = 55 + active.length * 6 + distinctTypes * 3 + (score >= 80 ? 6 : 0);
   const confidence = Math.max(45, Math.min(99, raw));
@@ -1023,46 +1118,64 @@ function computeConfidence(
   return { confidence, reason };
 }
 
-function buildReport(text: string): InvestigationReport {
+function buildResult(text: string): InvestigationResult {
   const trimmed = text.trim();
+
   if (trimmed.length === 0) {
+    const band = decideBand(0, "safe");
     return {
-      riskScore: 5,
-      riskLevel: "safe",
-      scamCategory: CATEGORY_LABEL.safe,
-      categoryId: "safe",
-      summary: generateSummary("safe", [], 5),
+      riskScore: 0,
+      riskLevel: band.riskLevel,
+      scamCategory: band.displayCategoryLabel,
+      categoryId: band.displayCategoryId,
+      detectedTypeId: "safe",
+      summary: generateSummary("safe", [], 0),
       evidence: [],
       scamDNA: generateScamDNA("safe", []),
       recommendations: generateRecommendations("safe"),
+      actionBadge: band.actionBadge,
       confidence: 70,
       confidenceReason: "No content was provided to analyse.",
     };
   }
 
   const ctx = buildIndicators(text);
-  const { score, activeIndicators } = calculateRisk(ctx);
-  const activeSet = new Set(activeIndicators);
-  const category = activeIndicators.length === 0 ? "safe" : classifyScam(activeSet, ctx);
+  const { score: rawScore, activeIndicators } = calculateRisk(ctx);
+  const detectedTypeId: ScamCategoryId =
+    activeIndicators.length === 0 ? "safe" : classifyScam(new Set(activeIndicators), ctx);
+
+  // If no indicators fired, force the score into the safe band.
+  const score = detectedTypeId === "safe" ? Math.min(rawScore, 15) : rawScore;
+  const band = decideBand(score, detectedTypeId);
+
+  // Recommendations & DNA come from the banded id so cards stay consistent
+  // with the headline verdict (e.g. a medium score shows "Possible Scam"
+  // recommendations, never scam-type-specific ones that would contradict it).
+  const recommendations = generateRecommendations(band.displayCategoryId);
+  const scamDNA = generateScamDNA(band.displayCategoryId, activeIndicators);
+  const summary = generateSummary(band.displayCategoryId, activeIndicators, score);
   const evidence = generateEvidence(ctx);
-  const summary = generateSummary(category, activeIndicators, score);
-  const scamDNA = generateScamDNA(category, activeIndicators);
-  const recommendations = generateRecommendations(category);
   const { confidence, reason } = computeConfidence(activeIndicators, score, ctx);
 
   return {
-    riskScore: category === "safe" ? Math.min(score, 15) : score,
-    riskLevel: category === "safe" ? "safe" : riskLevelFromScore(score),
-    scamCategory: CATEGORY_LABEL[category],
-    categoryId: category,
+    riskScore: score,
+    riskLevel: band.riskLevel,
+    scamCategory: band.displayCategoryLabel,
+    categoryId: band.displayCategoryId,
+    detectedTypeId,
     summary,
     evidence,
     scamDNA,
     recommendations,
+    actionBadge: band.actionBadge,
     confidence,
     confidenceReason: reason,
   };
 }
+
+// Backwards-compatible alias.
+const buildReport = buildResult;
+
 
 /* =========================================================================
  * 8. Public analyzers (swap points for a future real model)
@@ -1141,6 +1254,16 @@ const FOLLOW_UPS: Record<ScamCategoryId, string[]> = {
     "Was the domain slightly different from the real brand (e.g. missing/extra letter)?",
     "Did you already enter any credentials on the page?",
   ],
+  suspicious: [
+    "What made this message feel off to you?",
+    "Have you received similar messages from this sender before?",
+    "Would you like me to check a related message or link?",
+  ],
+  possible_scam: [
+    "Did the message ask you to share personal or financial details?",
+    "Did they create urgency or pressure you to act quickly?",
+    "Have you tried contacting the organisation through its official channel?",
+  ],
   safe: [
     "Would you like me to check a different message from the same sender?",
     "Do you have any other suspicious content you'd like me to review?",
@@ -1155,6 +1278,12 @@ export function getFollowUpQuestions(categoryId: ScamCategoryId): string[] {
 export function getIntroMessage(categoryId: ScamCategoryId, category: string): string {
   if (categoryId === "safe") {
     return "I've completed your investigation. No scam patterns matched, but I'm here if you want a second opinion on anything else.";
+  }
+  if (categoryId === "suspicious") {
+    return "I've completed your investigation. A few things look off, but it's not conclusive. Ask me anything and I'll help you decide the next step.";
+  }
+  if (categoryId === "possible_scam") {
+    return "I've completed your investigation. Several scam-like signals are present — verify before you act. Ask me anything about this case.";
   }
   return `I've completed your investigation — this content matches the ${category} pattern. Ask me anything about it, or share related suspicious activity you've seen.`;
 }

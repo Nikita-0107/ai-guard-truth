@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  ActionBadge,
   EvidenceItem,
   Recommendation,
   RiskLevel,
@@ -39,7 +40,11 @@ interface Report {
   evidence: EvidenceItem[];
   scam_dna: ScamDNATrait[];
   recommendations: Recommendation[];
-  raw_report: { categoryId?: ScamCategoryId } | null;
+  raw_report: {
+    categoryId?: ScamCategoryId;
+    detectedTypeId?: ScamCategoryId;
+    actionBadge?: ActionBadge;
+  } | null;
   investigation: {
     investigation_type: string;
     content: string | null;
@@ -72,12 +77,50 @@ function ReportPage() {
   if (!report) return null;
 
   const level = report.risk_level;
+  const badge: ActionBadge =
+    report.raw_report?.actionBadge ?? {
+      label:
+        level === "critical"
+          ? "Immediate Action Recommended"
+          : level === "high"
+            ? "Do Not Respond"
+            : level === "medium"
+              ? "Verify Before Taking Action"
+              : level === "low"
+                ? "Exercise Caution"
+                : "No Immediate Action Required",
+      tone:
+        level === "critical"
+          ? "critical"
+          : level === "high"
+            ? "warn"
+            : level === "medium"
+              ? "verify"
+              : level === "low"
+                ? "caution"
+                : "safe",
+    };
+
   const scoreGradient =
-    level === "critical" || level === "high"
+    badge.tone === "critical" || badge.tone === "warn"
       ? "bg-gradient-danger"
-      : level === "medium"
+      : badge.tone === "verify" || badge.tone === "caution"
         ? "bg-gradient-warning"
         : "bg-gradient-success";
+
+  const badgeClasses =
+    badge.tone === "critical" || badge.tone === "warn"
+      ? "bg-destructive/10 border-destructive/30 text-destructive"
+      : badge.tone === "verify" || badge.tone === "caution"
+        ? "bg-warning/10 border-warning/30 text-warning"
+        : "bg-success/10 border-success/30 text-success";
+
+  const BadgeIcon =
+    badge.tone === "critical" || badge.tone === "warn"
+      ? AlertTriangle
+      : badge.tone === "verify" || badge.tone === "caution"
+        ? Info
+        : CheckCircle2;
 
   return (
     <div className="min-h-screen bg-background bg-gradient-hero">
@@ -117,7 +160,7 @@ function ReportPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-destructive" />
+                <ShieldAlert className="h-4 w-4 text-brand" />
                 <span className="text-xs uppercase tracking-widest text-muted-foreground">
                   Risk Level
                 </span>
@@ -129,9 +172,14 @@ function ReportPage() {
                 </p>
                 <p className="mt-1 text-xl font-semibold">{report.scam_category}</p>
               </div>
-              <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-destructive/10 border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Immediate action recommended
+              <div
+                className={cn(
+                  "mt-5 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium",
+                  badgeClasses,
+                )}
+              >
+                <BadgeIcon className="h-3.5 w-3.5" />
+                {badge.label}
               </div>
             </div>
           </div>
@@ -213,7 +261,11 @@ function ReportPage() {
 
         {/* Follow-up chat */}
         <FollowUpChat
-          categoryId={report.raw_report?.categoryId ?? "safe"}
+          categoryId={
+            report.raw_report?.detectedTypeId ??
+            report.raw_report?.categoryId ??
+            "safe"
+          }
           category={report.scam_category ?? "Safe / Legitimate"}
         />
 
