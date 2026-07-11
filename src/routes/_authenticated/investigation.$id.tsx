@@ -21,7 +21,9 @@ import type {
   Recommendation,
   RiskLevel,
   ScamDNATrait,
+  ScamCategoryId,
 } from "@/lib/investigation-service";
+import { getFollowUpQuestions, getIntroMessage } from "@/lib/investigation-service";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/investigation/$id")({
