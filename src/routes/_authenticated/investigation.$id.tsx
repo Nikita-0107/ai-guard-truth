@@ -261,7 +261,11 @@ function ReportPage() {
 
         {/* Follow-up chat */}
         <FollowUpChat
-          categoryId={report.raw_report?.categoryId ?? "safe"}
+          categoryId={
+            report.raw_report?.detectedTypeId ??
+            report.raw_report?.categoryId ??
+            "safe"
+          }
           category={report.scam_category ?? "Safe / Legitimate"}
         />
 
