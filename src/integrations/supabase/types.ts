@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      demo_investigations: {
+        Row: {
+          city: string
+          date: string
+          id: string
+          risk_score: number
+          scam_type: string
+          status: string
+        }
+        Insert: {
+          city: string
+          date?: string
+          id?: string
+          risk_score: number
+          scam_type: string
+          status: string
+        }
+        Update: {
+          city?: string
+          date?: string
+          id?: string
+          risk_score?: number
+          scam_type?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      hotspot_statistics: {
+        Row: {
+          city: string
+          critical_cases: number
+          id: string
+          last_updated: string
+          state: string | null
+          top_scam: string | null
+          total_cases: number
+          trend: string | null
+        }
+        Insert: {
+          city: string
+          critical_cases: number
+          id?: string
+          last_updated?: string
+          state?: string | null
+          top_scam?: string | null
+          total_cases: number
+          trend?: string | null
+        }
+        Update: {
+          city?: string
+          critical_cases?: number
+          id?: string
+          last_updated?: string
+          state?: string | null
+          top_scam?: string | null
+          total_cases?: number
+          trend?: string | null
+        }
+        Relationships: []
+      }
       investigation_results: {
         Row: {
           created_at: string
@@ -127,6 +187,96 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      scam_trends: {
+        Row: {
+          color: string | null
+          id: string
+          last_updated: string
+          percentage: number
+          priority: number
+          scam_type: string
+        }
+        Insert: {
+          color?: string | null
+          id?: string
+          last_updated?: string
+          percentage: number
+          priority?: number
+          scam_type: string
+        }
+        Update: {
+          color?: string | null
+          id?: string
+          last_updated?: string
+          percentage?: number
+          priority?: number
+          scam_type?: string
+        }
+        Relationships: []
+      }
+      threat_alerts: {
+        Row: {
+          city: string
+          description: string | null
+          id: string
+          scam_type: string
+          severity: string
+          state: string | null
+          timestamp: string
+          title: string
+        }
+        Insert: {
+          city: string
+          description?: string | null
+          id?: string
+          scam_type: string
+          severity: string
+          state?: string | null
+          timestamp?: string
+          title: string
+        }
+        Update: {
+          city?: string
+          description?: string | null
+          id?: string
+          scam_type?: string
+          severity?: string
+          state?: string | null
+          timestamp?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      threat_metrics: {
+        Row: {
+          id: string
+          last_updated: string
+          metric_change: string | null
+          metric_name: string
+          metric_status: string | null
+          metric_value: string
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          last_updated?: string
+          metric_change?: string | null
+          metric_name: string
+          metric_status?: string | null
+          metric_value: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          last_updated?: string
+          metric_change?: string | null
+          metric_name?: string
+          metric_status?: string | null
+          metric_value?: string
+          sort_order?: number
         }
         Relationships: []
       }
