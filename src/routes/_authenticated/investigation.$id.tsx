@@ -336,6 +336,19 @@ function FollowUpChat({
           </div>
         ))}
       </div>
+      {suggestions.length > 0 && (
+        <div className="border-t border-border/40 px-4 py-3 flex flex-wrap gap-2">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              onClick={() => send(s)}
+              className="rounded-full border border-border/60 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="border-t border-border/40 p-3 flex gap-2">
         <Input
           value={input}
@@ -345,7 +358,7 @@ function FollowUpChat({
           className="bg-muted/40 border-border/60 h-11"
         />
         <Button
-          onClick={send}
+          onClick={() => send()}
           className="bg-gradient-brand text-primary-foreground shadow-glow hover:opacity-90 h-11 px-4"
         >
           <Send className="h-4 w-4" />
