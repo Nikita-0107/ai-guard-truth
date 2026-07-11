@@ -1247,6 +1247,16 @@ const FOLLOW_UPS: Record<ScamCategoryId, string[]> = {
     "Was the domain slightly different from the real brand (e.g. missing/extra letter)?",
     "Did you already enter any credentials on the page?",
   ],
+  suspicious: [
+    "What made this message feel off to you?",
+    "Have you received similar messages from this sender before?",
+    "Would you like me to check a related message or link?",
+  ],
+  possible_scam: [
+    "Did the message ask you to share personal or financial details?",
+    "Did they create urgency or pressure you to act quickly?",
+    "Have you tried contacting the organisation through its official channel?",
+  ],
   safe: [
     "Would you like me to check a different message from the same sender?",
     "Do you have any other suspicious content you'd like me to review?",
