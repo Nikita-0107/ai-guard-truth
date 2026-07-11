@@ -1279,5 +1279,11 @@ export function getIntroMessage(categoryId: ScamCategoryId, category: string): s
   if (categoryId === "safe") {
     return "I've completed your investigation. No scam patterns matched, but I'm here if you want a second opinion on anything else.";
   }
+  if (categoryId === "suspicious") {
+    return "I've completed your investigation. A few things look off, but it's not conclusive. Ask me anything and I'll help you decide the next step.";
+  }
+  if (categoryId === "possible_scam") {
+    return "I've completed your investigation. Several scam-like signals are present — verify before you act. Ask me anything about this case.";
+  }
   return `I've completed your investigation — this content matches the ${category} pattern. Ask me anything about it, or share related suspicious activity you've seen.`;
 }
