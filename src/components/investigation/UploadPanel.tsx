@@ -54,15 +54,6 @@ const FEATURE_BADGES = [
   { icon: ListChecks, label: "Actionable Recommendations" },
 ];
 
-type Example = {
-  id: string;
-  emoji: string;
-  label: string;
-  tone: string;
-  preview: string;
-  message: string;
-  type: InvestigationType;
-};
 
 type Sample = {
   name: string;
