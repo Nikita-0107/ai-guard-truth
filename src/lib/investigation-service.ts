@@ -485,7 +485,9 @@ type IndicatorId =
   | "courier_pretext"
   | "investment_pitch"
   | "job_pitch"
-  | "upi_trap";
+  | "upi_trap"
+  | "family_impersonation"
+  | "emergency_pretext";
 
 const INDICATOR_WEIGHT: Record<IndicatorId, number> = {
   authority_impersonation: 20,
@@ -503,6 +505,8 @@ const INDICATOR_WEIGHT: Record<IndicatorId, number> = {
   investment_pitch: 22,
   job_pitch: 15,
   upi_trap: 22,
+  family_impersonation: 30,
+  emergency_pretext: 20,
 };
 
 const INDICATOR_LABEL: Record<IndicatorId, string> = {
