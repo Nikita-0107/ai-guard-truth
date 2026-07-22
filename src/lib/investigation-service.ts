@@ -1155,6 +1155,8 @@ const INDICATOR_TO_TRAITS: Record<IndicatorId, string[]> = {
   investment_pitch: ["Financial"],
   job_pitch: ["Financial"],
   upi_trap: ["Financial"],
+  family_impersonation: ["Authority", "Isolation"],
+  emergency_pretext: ["Fear", "Urgency"],
   fake_domain: ["Authority"],
   unknown_website: ["Authority"],
   grammar_errors: [],
