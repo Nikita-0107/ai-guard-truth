@@ -1303,7 +1303,7 @@ function buildResult(text: string): InvestigationResult {
 }
 
 // Backwards-compatible alias.
-const buildReport = buildResult;
+export const buildReport = buildResult;
 
 
 /* =========================================================================
