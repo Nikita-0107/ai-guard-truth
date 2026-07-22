@@ -871,20 +871,25 @@ const CATEGORY_LABEL: Record<ScamCategoryId, string> = {
 export function classifyScam(active: Set<IndicatorId>, ctx: AnalysisContext): ScamCategoryId {
   const has = (id: IndicatorId) => active.has(id);
 
-  // Courier pretext wins over authority impersonation when a parcel is central.
-  if (has("courier_pretext") && (has("threat") || has("financial_demand") || has("authority_impersonation"))) {
+  // Phishing wins when a real URL/domain vector accompanies a KYC hook.
+  if ((has("fake_domain") || (has("unknown_website") && ctx.url.hasUrl)) && has("kyc_hook")) {
+    return "phishing";
+  }
+
+  // Courier pretext (requires a scam signal — bare "package" doesn't count).
+  if (has("courier_pretext") && (has("threat") || has("financial_demand") || has("authority_impersonation") || has("urgency"))) {
     return "courier";
   }
 
-  // Digital Arrest requires authority + threat (isolation/financial reinforce it).
-  if (has("authority_impersonation") && (has("threat") || has("isolation"))) {
+  // Digital Arrest: authority + (threat | isolation | direct money demand).
+  if (has("authority_impersonation") && (has("threat") || has("isolation") || has("financial_demand"))) {
     return "digital_arrest";
   }
 
+  if (has("upi_trap")) return "upi";
   if (has("investment_pitch")) return "investment";
   if (has("reward_promise")) return "lottery";
   if (has("job_pitch")) return "job";
-  if (has("upi_trap")) return "upi";
   if (has("kyc_hook") || (has("authority_impersonation") && (has("unknown_website") || has("fake_domain")))) {
     return "banking_kyc";
   }
