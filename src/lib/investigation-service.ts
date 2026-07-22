@@ -895,6 +895,7 @@ const CATEGORY_LABEL: Record<ScamCategoryId, string> = {
   upi: "UPI Payment Scam",
   job: "Job Scam",
   phishing: "Phishing Website",
+  family_emergency: "Family/Emergency Impersonation Scam",
   suspicious: "Suspicious",
   possible_scam: "Possible Scam",
   safe: "Safe / Legitimate",
