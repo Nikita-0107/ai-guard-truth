@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -8,16 +9,19 @@ import {
   History,
   Info,
   Map,
+  Minus,
   Network,
   PlusCircle,
   ShieldAlert,
   Sparkles,
+  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -89,6 +93,82 @@ function relativeTime(iso: string): string {
   return `${d} day${d === 1 ? "" : "s"} ago`;
 }
 
+// Deterministic pseudo-random from string
+function hashSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 0xffffffff;
+}
+
+// Intelligence source pool
+const SOURCES = ["Cyber Crime Cell", "Partner Bank", "Citizen Reports", "CERT-In", "Telecom Partner"];
+
+// Realistic recent offsets in minutes for the alert feed
+const RECENT_OFFSETS_MIN = [4, 18, 47, 92, 165, 320, 540, 780];
+
+function recentLabel(mins: number): string {
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 24 * 60) {
+    const h = Math.round(mins / 60);
+    return `${h} hr ago`;
+  }
+  const d = new Date(Date.now() - mins * 60_000);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `Today ${hh}:${mm}`;
+}
+
+// Intelligence-style descriptions per scam type
+const INTEL_DESCRIPTIONS: Record<string, (city: string) => string> = {
+  "Digital Arrest": (c) => `Coordinated impersonation cluster active in ${c}: suspects posing as CBI/Customs officers using spoofed video calls to coerce victims into "verification" transfers.`,
+  "UPI Fraud": (c) => `Spike in UPI collect-request fraud detected across ${c} — attackers weaponising QR "refund" flows on OLX/Quikr listings.`,
+  "Banking Scam": (c) => `Rising vishing campaign in ${c} impersonating bank fraud teams; targets high-value savings accounts within 2h of OTP capture.`,
+  "OTP Scam": (c) => `SIM-swap and OTP relay attempts up sharply in ${c}; correlated to leaked KYC dumps circulating on Telegram.`,
+  "Courier Scam": (c) => `FedEx/DHL parcel-hold pretext calls surging in ${c}, funnelling victims to fake "narcotics case" digital arrest chains.`,
+  "Investment Scam": (c) => `Fraudulent trading groups on WhatsApp/Telegram recruiting ${c} residents; front-end mimics Zerodha/Groww with fake P&L dashboards.`,
+  "Job Scam": (c) => `Fake work-from-home task scams active in ${c} — small initial payouts followed by ₹50k+ "unlock fee" demands.`,
+  "Lottery Scam": (c) => `KBC/Kaun Banega Crorepati lottery pretext resurfacing in ${c} via WhatsApp voice notes.`,
+};
+
+const RECOMMENDED_ACTIONS: Record<string, string> = {
+  critical: "Escalate to Cyber Crime Cell within 1 hour. Freeze linked mule accounts, issue regional advisory, and push alert to partner bank fraud desks.",
+  high: "Circulate advisory to field officers and partner banks. Monitor associated numbers and UPI handles for 24h.",
+  medium: "Log for trend analysis. Add indicators to watch-list and review in next daily briefing.",
+};
+
+function alertSource(id: string): string {
+  return SOURCES[Math.floor(hashSeed(id + "src") * SOURCES.length)];
+}
+function alertConfidence(id: string, severity: string): number {
+  const base = severity === "critical" ? 88 : severity === "high" ? 78 : 68;
+  return Math.min(99, base + Math.floor(hashSeed(id + "conf") * 11));
+}
+function alertOffset(id: string, idx: number): number {
+  const base = RECENT_OFFSETS_MIN[idx % RECENT_OFFSETS_MIN.length];
+  const jitter = Math.floor(hashSeed(id + "off") * 6) - 3;
+  return Math.max(2, base + jitter);
+}
+
+// Trending scam types augmentation
+function trendCases(id: string, pct: number): number {
+  // Total daily investigations across trends anchored around ~6.2k, distribute by %
+  const total = 6240;
+  const base = Math.round((pct / 100) * total);
+  const jitter = Math.floor(hashSeed(id + "cases") * 80) - 40;
+  return Math.max(50, base + jitter);
+}
+function trendDelta(id: string): { dir: "up" | "down" | "flat"; pct: number } {
+  const r = hashSeed(id + "delta");
+  if (r < 0.15) return { dir: "flat", pct: 0 };
+  if (r < 0.65) return { dir: "up", pct: Math.round(4 + r * 30) };
+  return { dir: "down", pct: Math.round(3 + (r - 0.65) * 22) };
+}
+
+
+
 function useMetrics() {
   return useQuery({
     queryKey: ["threat_metrics"],
@@ -153,6 +233,8 @@ function ThreatIntelligenceCenter() {
   const trends = useTrends();
   const alerts = useAlerts();
   const recent = useRecent();
+  const [activeAlert, setActiveAlert] = useState<any | null>(null);
+
 
   return (
     <SidebarProvider>
@@ -254,7 +336,7 @@ function ThreatIntelligenceCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-semibold tracking-tight">Trending Scam Types</h2>
-                      <p className="text-xs text-muted-foreground">Share of investigations (last 24h)</p>
+                      <p className="text-xs text-muted-foreground">Investigations volume &amp; 24h change</p>
                     </div>
                     <TrendingUp className="h-4 w-4 text-brand" />
                   </div>
@@ -263,20 +345,43 @@ function ThreatIntelligenceCenter() {
                       ? Array.from({ length: 5 }).map((_, i) => (
                           <div key={i} className="h-6 animate-pulse rounded bg-muted/40" />
                         ))
-                      : (trends.data ?? []).map((t: any) => (
-                          <div key={t.id}>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium">{t.scam_type}</span>
-                              <span className="tabular-nums text-muted-foreground">{Number(t.percentage)}%</span>
+                      : (trends.data ?? []).map((t: any) => {
+                          const pct = Number(t.percentage);
+                          const cases = trendCases(t.id, pct);
+                          const delta = trendDelta(t.id);
+                          const TrendIcon = delta.dir === "up" ? TrendingUp : delta.dir === "down" ? TrendingDown : Minus;
+                          const trendCls =
+                            delta.dir === "up"
+                              ? "bg-destructive/10 text-destructive"
+                              : delta.dir === "down"
+                                ? "bg-emerald-500/10 text-emerald-300"
+                                : "bg-muted text-muted-foreground";
+                          return (
+                            <div key={t.id}>
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{t.scam_type}</span>
+                                  <span className="tabular-nums text-muted-foreground">
+                                    {cases.toLocaleString("en-IN")} cases
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={cn("inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums", trendCls)}>
+                                    <TrendIcon className="h-3 w-3" />
+                                    {delta.dir === "flat" ? "0%" : `${delta.pct}%`}
+                                  </span>
+                                  <span className="tabular-nums text-xs text-muted-foreground">{pct}%</span>
+                                </div>
+                              </div>
+                              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className={cn("h-full rounded-full bg-gradient-to-r", t.color ?? "from-brand to-brand")}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
                             </div>
-                            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                              <div
-                                className={cn("h-full rounded-full bg-gradient-to-r", t.color ?? "from-brand to-brand")}
-                                style={{ width: `${Number(t.percentage)}%` }}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                   </div>
                 </div>
 
@@ -293,12 +398,20 @@ function ThreatIntelligenceCenter() {
                       ? Array.from({ length: 4 }).map((_, i) => (
                           <div key={i} className="h-20 animate-pulse rounded-xl bg-muted/30" />
                         ))
-                      : (alerts.data ?? []).slice(0, 4).map((a: any) => {
+                      : (alerts.data ?? []).slice(0, 4).map((a: any, idx: number) => {
                           const sev = SEVERITY_STYLES[a.severity] ?? SEVERITY_STYLES.medium;
+                          const source = alertSource(a.id);
+                          const confidence = alertConfidence(a.id, a.severity);
+                          const offset = alertOffset(a.id, idx);
+                          const intel =
+                            (INTEL_DESCRIPTIONS[a.scam_type]?.(a.city)) ??
+                            a.description ??
+                            `Elevated ${a.scam_type} activity reported in ${a.city}. Analyst review in progress.`;
                           return (
-                            <div
+                            <button
                               key={a.id}
-                              className="group rounded-xl border border-border/40 bg-card/40 p-4 transition hover:border-brand/30"
+                              onClick={() => setActiveAlert({ ...a, source, confidence, offset, intel })}
+                              className="group w-full rounded-xl border border-border/40 bg-card/40 p-4 text-left transition hover:border-brand/40 hover:bg-card/60"
                             >
                               <div className="flex items-center gap-2">
                                 <span className={cn("h-2 w-2 rounded-full", sev.dot)} />
@@ -307,14 +420,21 @@ function ThreatIntelligenceCenter() {
                                   {sev.label}
                                 </span>
                               </div>
-                              <p className="mt-1.5 text-sm text-muted-foreground">{a.title}</p>
-                              <p className="mt-2 text-[11px] text-muted-foreground/70">{relativeTime(a.timestamp)}</p>
-                            </div>
+                              <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{intel}</p>
+                              <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground/80">
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="rounded bg-muted/60 px-1.5 py-0.5 font-medium text-foreground/80">{source}</span>
+                                  <span className="tabular-nums">· {confidence}% conf.</span>
+                                </span>
+                                <span className="tabular-nums">{recentLabel(offset)}</span>
+                              </div>
+                            </button>
                           );
                         })}
                   </div>
                 </div>
               </section>
+
 
               {/* Quick Actions */}
               <section>
@@ -389,7 +509,62 @@ function ThreatIntelligenceCenter() {
           </main>
         </div>
       </div>
+
+      <Dialog open={!!activeAlert} onOpenChange={(o) => !o && setActiveAlert(null)}>
+        <DialogContent className="glass max-w-lg border-border/60">
+          {activeAlert && (() => {
+            const sev = SEVERITY_STYLES[activeAlert.severity] ?? SEVERITY_STYLES.medium;
+            const action = RECOMMENDED_ACTIONS[activeAlert.severity] ?? RECOMMENDED_ACTIONS.medium;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("h-2 w-2 rounded-full", sev.dot)} />
+                    <span className={cn("rounded-md border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", sev.badge)}>
+                      {sev.label}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">Alert ID · {String(activeAlert.id).slice(0, 8).toUpperCase()}</span>
+                  </div>
+                  <DialogTitle className="mt-2 text-xl">{activeAlert.title}</DialogTitle>
+                  <DialogDescription className="text-muted-foreground">
+                    {recentLabel(activeAlert.offset)} · Reported by {activeAlert.source}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                  <DetailField label="Region" value={`${activeAlert.city}${activeAlert.state ? `, ${activeAlert.state}` : ""}`} />
+                  <DetailField label="Scam Type" value={activeAlert.scam_type} />
+                  <DetailField label="Severity" value={sev.label} />
+                  <DetailField label="Source" value={activeAlert.source} />
+                  <DetailField label="Confidence" value={`${activeAlert.confidence}%`} />
+                  <DetailField label="First Seen" value={recentLabel(activeAlert.offset)} />
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Summary</p>
+                    <p className="mt-1 text-sm leading-relaxed">{activeAlert.intel}</p>
+                  </div>
+                  <div className="rounded-lg border border-brand/25 bg-brand/5 p-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-brand">Recommended Action</p>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/90">{action}</p>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/40 bg-card/40 p-3">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-1 font-medium">{value}</p>
+    </div>
   );
 }
 
