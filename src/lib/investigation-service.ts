@@ -525,6 +525,8 @@ const INDICATOR_LABEL: Record<IndicatorId, string> = {
   investment_pitch: "Investment Pitch",
   job_pitch: "Fake Job Offer",
   upi_trap: "UPI Trap",
+  family_impersonation: "Family/Friend Impersonation",
+  emergency_pretext: "Emergency Pretext",
 };
 
 interface IndicatorHit {
