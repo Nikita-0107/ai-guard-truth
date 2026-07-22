@@ -1087,6 +1087,7 @@ const RECS_BY_CATEGORY: Record<ScamCategoryId, Recommendation[]> = {
     { title: "Never trust a new UPI ID or account claimed by a 'relative'", description: "Impersonators route funds to their own UPI/account. Ask a control question only the real person would know.", urgency: "warn" },
     { title: "Report the number", description: "If money was sent, call 1930 within 24 hours and file a complaint at cybercrime.gov.in.", urgency: "warn" },
   ],
+  phishing: [
     { title: "Do not enter credentials", description: "Close the page immediately. Do not submit anything.", urgency: "critical" },
     { title: "Verify the URL", description: "Compare the domain character-by-character with the real brand's site.", urgency: "warn" },
     { title: "Report the link", description: "Report it to Google Safe Browsing and to the brand being impersonated.", urgency: "info" },
