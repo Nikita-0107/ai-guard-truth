@@ -661,11 +661,7 @@ const PATTERN_RULES: PatternRule[] = [
   // Isolation
   { id: "isolation", regex: /\bdo\s+not\s+(?:tell|inform|disclose\s+to)\s+anyone\b/i, reason: (m) => `"${m}" — isolates the target from help.` },
   { id: "isolation", regex: /\bstay\s+on\s+(?:this|the)\s+call\b/i, reason: (m) => `"${m}" — prevents the target from hanging up to verify.` },
-];
 
-  // Isolation
-  { id: "isolation", regex: /\bdo\s+not\s+(?:tell|inform|disclose\s+to)\s+anyone\b/i, reason: (m) => `"${m}" — isolates the target from help.` },
-  { id: "isolation", regex: /\bstay\s+on\s+(?:this|the)\s+call\b/i, reason: (m) => `"${m}" — prevents the target from hanging up to verify.` },
 
   // Family / friend impersonation (scammer poses as a relative or close contact)
   { id: "family_impersonation", regex: /\b(?:hi|hello|hey)\s+(?:beta|beti|bhai|bhaiya|didi|dear|son|daughter|dad|mom|mummy|papa)\b/i, reason: (m) => `"${m}" — impersonators open with a familiar family address to bypass suspicion.` },
