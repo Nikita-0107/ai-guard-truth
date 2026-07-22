@@ -52,6 +52,7 @@ export type ScamCategoryId =
   | "upi"
   | "job"
   | "phishing"
+  | "family_emergency"
   | "suspicious"
   | "possible_scam"
   | "safe";
@@ -484,7 +485,9 @@ type IndicatorId =
   | "courier_pretext"
   | "investment_pitch"
   | "job_pitch"
-  | "upi_trap";
+  | "upi_trap"
+  | "family_impersonation"
+  | "emergency_pretext";
 
 const INDICATOR_WEIGHT: Record<IndicatorId, number> = {
   authority_impersonation: 20,
@@ -502,6 +505,8 @@ const INDICATOR_WEIGHT: Record<IndicatorId, number> = {
   investment_pitch: 22,
   job_pitch: 15,
   upi_trap: 22,
+  family_impersonation: 30,
+  emergency_pretext: 20,
 };
 
 const INDICATOR_LABEL: Record<IndicatorId, string> = {
@@ -520,6 +525,8 @@ const INDICATOR_LABEL: Record<IndicatorId, string> = {
   investment_pitch: "Investment Pitch",
   job_pitch: "Fake Job Offer",
   upi_trap: "UPI Trap",
+  family_impersonation: "Family/Friend Impersonation",
+  emergency_pretext: "Emergency Pretext",
 };
 
 interface IndicatorHit {
@@ -654,6 +661,24 @@ const PATTERN_RULES: PatternRule[] = [
   // Isolation
   { id: "isolation", regex: /\bdo\s+not\s+(?:tell|inform|disclose\s+to)\s+anyone\b/i, reason: (m) => `"${m}" — isolates the target from help.` },
   { id: "isolation", regex: /\bstay\s+on\s+(?:this|the)\s+call\b/i, reason: (m) => `"${m}" — prevents the target from hanging up to verify.` },
+
+
+  // Family / friend impersonation (scammer poses as a relative or close contact)
+  { id: "family_impersonation", regex: /\b(?:hi|hello|hey)\s+(?:beta|beti|bhai|bhaiya|didi|dear|son|daughter|dad|mom|mummy|papa)\b/i, reason: (m) => `"${m}" — impersonators open with a familiar family address to bypass suspicion.` },
+  { id: "family_impersonation", regex: /\bthis\s+is\s+(?:your\s+)?(?:uncle|aunt(?:y|ie)?|cousin|nephew|niece|brother|sister|dad|mom|mummy|papa|grand(?:pa|ma|father|mother))\b/i, reason: (m) => `"${m}" — claims to be a specific relative without proof of identity.` },
+  { id: "family_impersonation", regex: /\b(?:lost\s+my\s+phone|(?:using|from)\s+(?:a\s+)?(?:friend'?s|new)\s+(?:phone|number)|this\s+is\s+my\s+new\s+number|old\s+number\s+(?:is\s+)?(?:not\s+working|dead|off))\b/i, reason: (m) => `"${m}" — a "new number" pretext is how impersonators explain why the contact looks unfamiliar.` },
+  { id: "family_impersonation", regex: /\b(?:don'?t|do\s+not)\s+call\b/i, reason: (m) => `"${m}" — telling the target not to call back blocks voice verification.` },
+  { id: "family_impersonation", regex: /\bphone\s+(?:is\s+)?(?:off|dead|switched\s+off|not\s+working|broken)\b/i, reason: (m) => `"${m}" — a "phone is off" excuse prevents the target from confirming the sender's real voice.` },
+
+  // Emergency pretext (medical/travel/accident) — pairs with family impersonation
+  { id: "emergency_pretext", regex: /\bmedical\s+emergency\b/i, reason: () => `"medical emergency" — the go-to hook that pressures instant transfers.` },
+  { id: "emergency_pretext", regex: /\b(?:stuck|stranded)\s+(?:at|in)\s+(?:the\s+)?(?:airport|hospital|station|border|police\s+station)\b/i, reason: (m) => `"${m}" — invented stranding is a scripted emergency-scam beat.` },
+  { id: "emergency_pretext", regex: /\burgently\s+need\b/i, reason: () => `"urgently need" — manufactured urgency to skip verification.` },
+  { id: "emergency_pretext", regex: /\bneed\s+(?:₹|rs\.?|inr)?\s*\d[\d,]*\s+(?:urgently|immediately|right\s+now|asap)\b/i, reason: (m) => `"${m}" — urgent money ask without prior context.` },
+
+  // Family-emergency money asks (informal transfer phrasing the standard financial_demand regex misses)
+  { id: "financial_demand", regex: /\b(?:please\s+)?(?:transfer|send)\s+(?:it\s+)?(?:to\s+)?(?:this\s+)?(?:upi|account|number|a\/c)\b/i, reason: (m) => `"${m}" — routes money to an account the target can't verify.`, suppressOnWarning: true },
+  { id: "financial_demand", regex: /\bi'?ll\s+return\s+it\s+tomorrow\b/i, reason: () => `"I'll return it tomorrow" — the classic false promise used in emergency-impersonation scams.`, suppressOnWarning: true },
 ];
 
 function anyWarning(text: string): boolean {
@@ -870,6 +895,7 @@ const CATEGORY_LABEL: Record<ScamCategoryId, string> = {
   upi: "UPI Payment Scam",
   job: "Job Scam",
   phishing: "Phishing Website",
+  family_emergency: "Family/Emergency Impersonation Scam",
   suspicious: "Suspicious",
   possible_scam: "Possible Scam",
   safe: "Safe / Legitimate",
@@ -898,9 +924,21 @@ export function classifyScam(active: Set<IndicatorId>, ctx: AnalysisContext): Sc
     "upi_trap",
     "isolation",
     "urgency",
+    "family_impersonation",
+    "emergency_pretext",
   ];
   if (!scamSignals.some((id) => active.has(id))) return "safe";
 
+
+  // Family / friend impersonation with an emergency ask — highest-priority
+  // routing so a "Hi beta, this is uncle" hook doesn't get pulled into
+  // banking / digital-arrest branches.
+  if (
+    has("family_impersonation") &&
+    (has("emergency_pretext") || has("financial_demand") || has("isolation"))
+  ) {
+    return "family_emergency";
+  }
 
   // Phishing wins when a real URL/domain vector accompanies a KYC hook.
   if ((has("fake_domain") || (has("unknown_website") && ctx.url.hasUrl)) && has("kyc_hook")) {
@@ -1055,6 +1093,12 @@ const RECS_BY_CATEGORY: Record<ScamCategoryId, Recommendation[]> = {
     { title: "Verify the company", description: "Search the company name plus 'scam' before engaging.", urgency: "warn" },
     { title: "Report the sender", description: "Report the number in-app and to cybercrime.gov.in if money was lost.", urgency: "info" },
   ],
+  family_emergency: [
+    { title: "Do not send any money", description: "The classic beat of this scam is a family member in distress asking for an instant transfer. Stop before you pay.", urgency: "critical" },
+    { title: "Verify by calling the person on their known number", description: "Even if the message says 'phone is off' or 'don't call', dial the relative's real number or a shared family member to confirm.", urgency: "critical" },
+    { title: "Never trust a new UPI ID or account claimed by a 'relative'", description: "Impersonators route funds to their own UPI/account. Ask a control question only the real person would know.", urgency: "warn" },
+    { title: "Report the number", description: "If money was sent, call 1930 within 24 hours and file a complaint at cybercrime.gov.in.", urgency: "warn" },
+  ],
   phishing: [
     { title: "Do not enter credentials", description: "Close the page immediately. Do not submit anything.", urgency: "critical" },
     { title: "Verify the URL", description: "Compare the domain character-by-character with the real brand's site.", urgency: "warn" },
@@ -1096,6 +1140,7 @@ const DNA_BASE: Record<ScamCategoryId, Record<string, number>> = {
   upi:            { Authority: 65,  Fear: 55, Urgency: 80, Financial: 90, Isolation: 40 },
   job:            { Authority: 55,  Fear: 25, Urgency: 70, Financial: 75, Isolation: 60 },
   phishing:       { Authority: 80,  Fear: 60, Urgency: 75, Financial: 65, Isolation: 50 },
+  family_emergency: { Authority: 40, Fear: 75, Urgency: 90, Financial: 90, Isolation: 85 },
   suspicious:     { Authority: 25,  Fear: 20, Urgency: 35, Financial: 25, Isolation: 15 },
   possible_scam:  { Authority: 55,  Fear: 45, Urgency: 60, Financial: 55, Isolation: 35 },
   safe:           { Authority:  5,  Fear:  5, Urgency: 10, Financial:  5, Isolation:  5 },
@@ -1122,6 +1167,8 @@ const INDICATOR_TO_TRAITS: Record<IndicatorId, string[]> = {
   investment_pitch: ["Financial"],
   job_pitch: ["Financial"],
   upi_trap: ["Financial"],
+  family_impersonation: ["Authority", "Isolation"],
+  emergency_pretext: ["Fear", "Urgency"],
   fake_domain: ["Authority"],
   unknown_website: ["Authority"],
   grammar_errors: [],
@@ -1291,6 +1338,18 @@ function buildResult(text: string): InvestigationResult {
     case "phishing":
       floor = has("fake_domain") ? 92 : has("unknown_website") ? 78 : 65;
       break;
+    case "family_emergency":
+      // Family-impersonation + emergency + money ask is one of the highest-
+      // confidence signatures — a single missed transfer is catastrophic.
+      floor =
+        has("family_impersonation") &&
+        (has("emergency_pretext") || has("isolation")) &&
+        has("financial_demand")
+          ? 95
+          : has("family_impersonation") && (has("emergency_pretext") || has("financial_demand"))
+            ? 90
+            : 82;
+      break;
   }
 
   let score: number;
@@ -1408,6 +1467,11 @@ const FOLLOW_UPS: Record<ScamCategoryId, string[]> = {
     "Did the link ask you to log in with your bank or email password?",
     "Was the domain slightly different from the real brand (e.g. missing/extra letter)?",
     "Did you already enter any credentials on the page?",
+  ],
+  family_emergency: [
+    "Did the sender claim they lost their phone or are on a 'new number'?",
+    "Did they refuse a voice call or say their phone is switched off?",
+    "Did they push you to transfer money to an unfamiliar UPI ID or account?",
   ],
   suspicious: [
     "What made this message feel off to you?",
