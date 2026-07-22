@@ -64,78 +64,340 @@ type Example = {
   type: InvestigationType;
 };
 
-const EXAMPLES: Example[] = [
+type Sample = {
+  name: string;
+  message: string;
+  type: InvestigationType;
+  legit: boolean;
+};
+
+type SampleCategory = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+  samples: Sample[];
+};
+
+const SAMPLE_CATEGORIES: SampleCategory[] = [
   {
-    id: "digital-arrest",
-    emoji: "🚨",
-    label: "Digital Arrest",
-    tone: "from-red-500/20 to-orange-500/10 border-red-500/30",
-    preview: "CBI officer claims your Aadhaar is linked to a money-laundering case…",
-    message:
-      "This is Inspector Rakesh Kumar from CBI Mumbai. Your Aadhaar number has been linked to a serious money laundering case worth ₹42 lakhs. An arrest warrant has been issued against you. Stay on this video call — do not disconnect or contact anyone. To avoid immediate arrest you must transfer ₹85,000 to the RBI verification account within the next 2 hours for identity verification.",
-    type: "sms",
+    id: "whatsapp",
+    label: "WhatsApp",
+    icon: MessageCircle,
+    description: "Chats forwarded from contacts and unknown numbers",
+    samples: [
+      {
+        name: "Family Emergency",
+        type: "whatsapp",
+        legit: false,
+        message:
+          "Hi beta, this is uncle. I lost my phone and I'm using a friend's number. I'm stuck at the airport and need ₹35,000 urgently for a medical emergency. Please transfer to this UPI: help@paytm. I'll return it tomorrow morning. Don't call, phone is off.",
+      },
+      {
+        name: "Investment Opportunity",
+        type: "whatsapp",
+        legit: false,
+        message:
+          "Namaste! I'm Anjali from Motilal Premium Advisory (SEBI Reg: INH000012345). Our VIP group gave 42% profit yesterday. Guaranteed 30% monthly returns. Join our Telegram by paying ₹9,999 lifetime membership. First 10 members get free intraday tips worth ₹50,000.",
+      },
+      {
+        name: "Job Offer",
+        type: "whatsapp",
+        legit: false,
+        message:
+          "Congratulations! You have been shortlisted for a Work From Home data entry role at Amazon India. Salary ₹45,000/month. Pay ₹2,500 refundable registration fee to activate your login credentials. Send screenshot after payment to receive offer letter.",
+      },
+      {
+        name: "Prize Notification",
+        type: "whatsapp",
+        legit: false,
+        message:
+          "Congratulations!!! Your WhatsApp number has won ₹25,00,000 in the KBC Jio Lucky Draw 2026. Lottery No: KBC8956. Pay a refundable processing fee of ₹8,500 to claim. Do not tell anyone or prize will be cancelled.",
+      },
+      {
+        name: "Group Invite",
+        type: "whatsapp",
+        legit: true,
+        message:
+          "Hey! Adding you to our society Diwali planning group. We're collecting ₹500 per flat for decorations — please pay to the treasurer directly whenever convenient. No rush.",
+      },
+      {
+        name: "Meeting Reminder",
+        type: "whatsapp",
+        legit: true,
+        message:
+          "Reminder: our book club meets this Saturday at 6pm at Priya's place. Bringing snacks would be lovely but not required. See you all there!",
+      },
+    ],
   },
   {
-    id: "otp-scam",
-    emoji: "🔐",
-    label: "OTP Scam",
-    tone: "from-amber-500/20 to-yellow-500/10 border-amber-500/30",
-    preview: "Bank agent asking you to share the OTP to 'verify' your account…",
-    message:
-      "Hello sir, I am calling from SBI Bank head office. Your account will be blocked in 30 minutes due to KYC failure. To keep it active, please share the 6-digit OTP you just received on your registered mobile number. This is only for verification, we will never misuse it.",
-    type: "sms",
+    id: "sms",
+    label: "SMS",
+    icon: MessageSquare,
+    description: "Short text messages from shortcodes and unknown senders",
+    samples: [
+      {
+        name: "Account Notice",
+        type: "sms",
+        legit: false,
+        message:
+          "Dear Customer, your SBI account will be blocked in 30 minutes due to KYC failure. To keep it active, share the 6-digit OTP just sent to your mobile. This is only for verification.",
+      },
+      {
+        name: "Payment Request",
+        type: "sms",
+        legit: false,
+        message:
+          "Hi, I want to buy your bike listed on OLX. I am transferring ₹45,000 now. Please accept the request on your UPI app and enter your PIN to receive the payment. I'm an Army officer posted in Kashmir, cannot call.",
+      },
+      {
+        name: "Parcel Update",
+        type: "sms",
+        legit: false,
+        message:
+          "This is FedEx Customer Care. A parcel booked in your name from Mumbai to Taiwan has been intercepted by NCB. It contains 4 passports and 200g MDMA. Press 1 to connect with the investigating officer or you will be arrested within 2 hours.",
+      },
+      {
+        name: "OTP Message",
+        type: "sms",
+        legit: true,
+        message:
+          "Dear Customer, 4271 is your OTP for logging in to HDFC Bank NetBanking. Valid for 5 minutes. Do NOT share this OTP with anyone, including bank staff. - HDFC Bank",
+      },
+      {
+        name: "Appointment Reminder",
+        type: "sms",
+        legit: true,
+        message:
+          "Reminder: your appointment with Dr. Mehta at Apollo Clinic is confirmed for tomorrow 11:00 AM. Please arrive 10 minutes early. Reply CANCEL to reschedule.",
+      },
+      {
+        name: "Delivery Confirmation",
+        type: "sms",
+        legit: true,
+        message:
+          "Your Amazon package will arrive tomorrow between 10 AM and 2 PM. Track your order in the Amazon app. No action required.",
+      },
+    ],
   },
   {
-    id: "upi-fraud",
-    emoji: "💳",
-    label: "UPI Fraud",
-    tone: "from-fuchsia-500/20 to-pink-500/10 border-fuchsia-500/30",
-    preview: "Fake buyer sends a UPI 'request money' link disguised as payment…",
-    message:
-      "Hi, I want to buy your bike listed on OLX. I am transferring ₹45,000 now. Please accept the request on your UPI app and enter your PIN to receive the payment. I am an Army officer posted in Kashmir, cannot call. Approve fast, I have to travel.",
-    type: "sms",
+    id: "email",
+    label: "Email",
+    icon: Mail,
+    description: "Emails from businesses, HR teams and unknown senders",
+    samples: [
+      {
+        name: "Password Reset",
+        type: "email",
+        legit: false,
+        message:
+          "Dear user, unusual activity was detected on your Microsoft 365 account. Your access will be suspended within 24 hours. Click here to verify your identity and reset your password immediately: http://ms-verify-account.top/login",
+      },
+      {
+        name: "Invoice",
+        type: "email",
+        legit: false,
+        message:
+          "Attached is your invoice INV-88213 for ₹78,540. Payment is overdue. Kindly transfer to the updated bank account below to avoid legal action. Do not use the previously shared account — it has been closed.",
+      },
+      {
+        name: "HR Recruitment",
+        type: "email",
+        legit: false,
+        message:
+          "Congratulations! You have been selected for a Senior Analyst role at TCS with CTC of ₹18 LPA. To confirm your seat, pay a refundable ₹4,999 background verification fee to the HR account below within 24 hours. Offer letter will follow.",
+      },
+      {
+        name: "Tax Refund",
+        type: "email",
+        legit: false,
+        message:
+          "Income Tax Department: You are eligible for a refund of ₹28,450. To receive the amount, verify your bank details and PAN by clicking the secure link below. Failure to respond will result in cancellation of refund.",
+      },
+      {
+        name: "Newsletter",
+        type: "email",
+        legit: true,
+        message:
+          "Hi there, here's our weekly product digest — a summary of new releases, engineering deep-dives and upcoming webinars. Unsubscribe anytime using the link at the bottom.",
+      },
+      {
+        name: "Order Receipt",
+        type: "email",
+        legit: true,
+        message:
+          "Thanks for your order! Your Zomato order #A9821 has been placed successfully. Estimated delivery: 32 minutes. You can track it live in the app.",
+      },
+    ],
   },
   {
-    id: "courier-scam",
-    emoji: "📦",
-    label: "Courier Scam",
-    tone: "from-orange-500/20 to-red-500/10 border-orange-500/30",
-    preview: "FedEx caller claims illegal contents were found in your parcel…",
-    message:
-      "This is FedEx Customer Care. A parcel booked in your name from Mumbai to Taiwan has been intercepted by Narcotics Control Bureau. It contains 4 passports, 3 credit cards and 200g of MDMA. Press 1 to connect with the investigating officer or you will be arrested within 2 hours.",
-    type: "sms",
+    id: "transcript",
+    label: "Phone Call Transcript",
+    icon: PhoneCall,
+    description: "Transcribed voice calls from unknown callers",
+    samples: [
+      {
+        name: "Customer Support",
+        type: "transcript",
+        legit: false,
+        message:
+          "Hello sir, I am calling from Amazon customer support. A suspicious order worth ₹58,000 was placed from your account. To cancel it, please install AnyDesk on your phone and share the 9-digit code with me so we can verify from our side.",
+      },
+      {
+        name: "Bank Executive",
+        type: "transcript",
+        legit: false,
+        message:
+          "Sir, main HDFC head office se bol raha hoon. Aapka credit card block hone wala hai kyunki KYC pending hai. Reactivate karne ke liye card number, CVV aur OTP batayein — call disconnect mat karna.",
+      },
+      {
+        name: "Government Officer",
+        type: "transcript",
+        legit: false,
+        message:
+          "This is Inspector Rakesh Kumar from CBI Mumbai. Your Aadhaar has been linked to a money laundering case worth ₹42 lakhs. An arrest warrant is issued. Stay on this video call and transfer ₹85,000 to the RBI verification account within 2 hours.",
+      },
+      {
+        name: "Insurance Agent",
+        type: "transcript",
+        legit: false,
+        message:
+          "Sir, your LIC policy has lapsed and ₹6,80,000 bonus is stuck. Pay a ₹12,000 processing charge to the account I share, and we will release the entire amount within 48 hours to your registered bank.",
+      },
+      {
+        name: "Salon Booking",
+        type: "transcript",
+        legit: true,
+        message:
+          "Hi, this is Lakme Salon Bandra confirming your haircut appointment for Saturday at 4 PM with stylist Neha. Please reach 10 minutes early. Reply or call back if you need to reschedule.",
+      },
+    ],
   },
   {
-    id: "investment-scam",
-    emoji: "📈",
-    label: "Investment Scam",
-    tone: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30",
-    preview: "Guaranteed 30% monthly returns from a 'SEBI-registered' expert…",
-    message:
-      "Congratulations! You have been selected for our VIP stock tips group by Mrs. Anjali Sharma (SEBI Reg: INH000012345). Guaranteed 30% monthly returns. Yesterday's call gave 42% profit. Join our premium Telegram group by paying ₹9,999 membership. First 10 members get free intraday tips worth ₹50,000.",
-    type: "sms",
+    id: "banking",
+    label: "Banking",
+    icon: Landmark,
+    description: "Alerts and requests that appear to come from your bank",
+    samples: [
+      {
+        name: "OTP Verification",
+        type: "sms",
+        legit: false,
+        message:
+          "SBI Alert: Your net banking will be deactivated in 15 minutes. To keep it active, share the OTP just sent to your registered mobile with our executive. This is a one-time verification.",
+      },
+      {
+        name: "Transaction Alert",
+        type: "sms",
+        legit: false,
+        message:
+          "Dear Customer, a debit of ₹49,999 was attempted on your ICICI account. If not done by you, call 8845-XXX-221 immediately and confirm your card details to reverse the transaction.",
+      },
+      {
+        name: "Account Update",
+        type: "email",
+        legit: false,
+        message:
+          "Your Axis Bank account has been temporarily restricted due to incomplete profile. Update your details within 24 hours using the secure portal below to restore full access: http://axis-verify-profile.xyz",
+      },
+      {
+        name: "KYC Reminder",
+        type: "sms",
+        legit: false,
+        message:
+          "Dear Customer, your KYC is pending. Your Kotak account will be suspended today. Complete KYC by clicking the link: http://kyc-update-kotak.top and enter your Debit Card and OTP to verify.",
+      },
+      {
+        name: "Statement Ready",
+        type: "email",
+        legit: true,
+        message:
+          "Your monthly account statement for October is now available in the HDFC Bank app. No action is required. Log in through the app or website to view or download the statement.",
+      },
+    ],
   },
   {
-    id: "lottery-scam",
-    emoji: "🎁",
-    label: "Lottery Scam",
-    tone: "from-violet-500/20 to-purple-500/10 border-violet-500/30",
-    preview: "You've 'won' a KBC lottery of ₹25 lakhs — pay processing fee…",
-    message:
-      "Congratulations!!! Your mobile number has won ₹25,00,000 in the KBC Jio Lucky Draw 2026. Lottery Number: KBC8956. To claim your prize, pay a refundable processing fee of ₹8,500 to the account below and send a screenshot to this WhatsApp number. Do not tell anyone or your prize will be cancelled.",
-    type: "sms",
+    id: "delivery",
+    label: "Delivery",
+    icon: Package,
+    description: "Notifications about parcels, shipments and couriers",
+    samples: [
+      {
+        name: "Package Update",
+        type: "sms",
+        legit: false,
+        message:
+          "India Post: Your parcel could not be delivered due to incomplete address. Update your address and pay a ₹25 redelivery fee within 12 hours here: http://indiapost-redeliver.xyz",
+      },
+      {
+        name: "Customs Notification",
+        type: "email",
+        legit: false,
+        message:
+          "DHL Customs: A parcel addressed to you is held at Mumbai customs. Illegal contents were suspected. Contact our officer immediately at +91-9812XXXXXX and pay a ₹15,000 clearance fee to release it.",
+      },
+      {
+        name: "Tracking Status",
+        type: "sms",
+        legit: true,
+        message:
+          "Your Flipkart order OD1234567 has been shipped via Ekart and will arrive by Thursday. Track live in the Flipkart app. No action required.",
+      },
+      {
+        name: "Delivery Rescheduled",
+        type: "sms",
+        legit: true,
+        message:
+          "Hi, your Blue Dart shipment has been rescheduled to tomorrow between 11 AM and 3 PM as no one was available at the address. No fee is required.",
+      },
+    ],
   },
   {
-    id: "safe-message",
-    emoji: "🟢",
-    label: "Safe Message",
-    tone: "from-emerald-500/20 to-green-500/10 border-emerald-500/30",
-    preview: "A genuine OTP notification from your bank — no action required…",
-    message:
-      "Dear Customer, 4271 is your OTP for logging in to HDFC Bank NetBanking. Valid for 5 minutes. Do NOT share this OTP with anyone, including bank staff. - HDFC Bank",
-    type: "sms",
+    id: "government",
+    label: "Government Notice",
+    icon: FileText,
+    description: "Messages that look like they come from a government body",
+    samples: [
+      {
+        name: "Aadhaar Update",
+        type: "sms",
+        legit: false,
+        message:
+          "UIDAI Notice: Your Aadhaar will be suspended in 6 hours as biometric update is pending. Update immediately: http://uidai-verify.top and share the OTP with the officer to complete verification.",
+      },
+      {
+        name: "Traffic Challan",
+        type: "sms",
+        legit: false,
+        message:
+          "Traffic Police: An e-challan of ₹5,000 is pending against your vehicle MH01XX1234. To avoid court summons, pay within 3 hours via this secure link: http://echallan-mha.xyz",
+      },
+      {
+        name: "Electricity Disconnection",
+        type: "sms",
+        legit: false,
+        message:
+          "Dear Consumer, your electricity connection will be disconnected tonight at 9:30 PM as your previous bill was not updated. Contact our officer at 7042-XXX-118 immediately to avoid disconnection.",
+      },
+      {
+        name: "Court Summons",
+        type: "email",
+        legit: false,
+        message:
+          "This is an official notice from the Cyber Crime Cell. A case has been registered against your PAN for illegal transactions. Attend the video hearing on Skype today at 3 PM or an arrest warrant will be issued.",
+      },
+      {
+        name: "Passport Appointment",
+        type: "email",
+        legit: true,
+        message:
+          "Your Passport Seva appointment at PSK Lower Parel is confirmed for 12 November, 10:30 AM. Carry the original documents listed in your application checklist.",
+      },
+    ],
   },
 ];
+
+const ALL_SAMPLES: Sample[] = SAMPLE_CATEGORIES.flatMap((c) => c.samples);
 
 const LOADING_STEPS = [
   "Extracting entities...",
