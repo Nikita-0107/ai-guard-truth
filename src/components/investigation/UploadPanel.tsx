@@ -654,74 +654,111 @@ export function UploadPanel() {
         </div>
       </div>
 
-      {/* Try an Example */}
+      {/* Sample Communications */}
       <section className="animate-fade-up">
-        <div className="mb-4 flex items-end justify-between">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Try an Example</h2>
+            <h2 className="text-lg font-semibold">Sample Communications</h2>
             <p className="text-sm text-muted-foreground">
-              Click any card to auto-fill a realistic sample message.
+              Pick a category to browse realistic samples. Sentinel decides the verdict — you decide what to investigate.
             </p>
           </div>
-          <span className="hidden text-xs text-muted-foreground sm:block">
-            Curated from real-world scam patterns
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex.id}
-              onClick={() => pickExample(ex)}
-              className={cn(
-                "group text-left rounded-2xl border bg-gradient-to-br p-4 transition-all hover:-translate-y-0.5 hover:shadow-elegant",
-                ex.tone,
-              )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 rounded-full border-border/60"
+              onClick={() => pickRandom(ALL_SAMPLES)}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-xl leading-none">{ex.emoji}</span>
-                <span className="text-sm font-semibold">{ex.label}</span>
-              </div>
-              <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{ex.preview}</p>
-              <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">
-                Use this example <ArrowRight className="h-3 w-3" />
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Recent Example Investigations (compact list) */}
-      <section className="animate-fade-up">
-        <div className="mb-3">
-          <h2 className="text-lg font-semibold">Recent Example Investigations</h2>
-          <p className="text-sm text-muted-foreground">
-            Quick-load any of these into the investigator.
-          </p>
-        </div>
-
-        <div className="glass rounded-2xl divide-y divide-border/40 overflow-hidden">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex.id}
-              onClick={() => pickExample(ex)}
-              className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+              <Dice5 className="h-3.5 w-3.5" /> Surprise Me
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 rounded-full border-border/60"
+              onClick={() => pickRandom(ALL_SAMPLES.filter((s) => s.legit))}
             >
-              <span className="text-base leading-none">{ex.emoji}</span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{ex.label}</span>
-                  <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Sample
-                  </span>
+              <Shuffle className="h-3.5 w-3.5" /> Random Legitimate
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 rounded-full border-border/60"
+              onClick={() => pickRandom(ALL_SAMPLES.filter((s) => !s.legit))}
+            >
+              <Shuffle className="h-3.5 w-3.5" /> Random Suspicious
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {SAMPLE_CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setOpenCategory(cat)}
+              className="group flex flex-col items-start gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:bg-muted/30 hover:shadow-elegant"
+            >
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-brand-soft border border-border/60 group-hover:border-brand/40">
+                <cat.icon className="h-5 w-5 text-brand" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold">{cat.label}</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
+                  {cat.description}
                 </div>
-                <p className="truncate text-xs text-muted-foreground">{ex.preview}</p>
               </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+              <span className="mt-auto inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors group-hover:text-brand">
+                {cat.samples.length} samples <ArrowRight className="h-3 w-3" />
+              </span>
             </button>
           ))}
         </div>
       </section>
+
+      <Dialog open={!!openCategory} onOpenChange={(o) => !o && setOpenCategory(null)}>
+        <DialogContent className="max-w-lg">
+          {openCategory && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <openCategory.icon className="h-4 w-4 text-brand" />
+                  {openCategory.label}
+                </DialogTitle>
+                <DialogDescription>
+                  Choose a sample to load into the investigator. The verdict is revealed only after analysis.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-2 divide-y divide-border/40 overflow-hidden rounded-xl border border-border/60">
+                {openCategory.samples.map((s) => (
+                  <button
+                    key={s.name}
+                    onClick={() => pickSample(s)}
+                    className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium">{s.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Loads as {TYPES.find((t) => t.id === s.type)?.label ?? s.type}
+                      </div>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => pickRandom(openCategory.samples)}
+                >
+                  <Dice5 className="h-3.5 w-3.5" /> Random from {openCategory.label}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
