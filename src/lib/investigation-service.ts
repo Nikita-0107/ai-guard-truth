@@ -1338,6 +1338,18 @@ function buildResult(text: string): InvestigationResult {
     case "phishing":
       floor = has("fake_domain") ? 92 : has("unknown_website") ? 78 : 65;
       break;
+    case "family_emergency":
+      // Family-impersonation + emergency + money ask is one of the highest-
+      // confidence signatures — a single missed transfer is catastrophic.
+      floor =
+        has("family_impersonation") &&
+        (has("emergency_pretext") || has("isolation")) &&
+        has("financial_demand")
+          ? 95
+          : has("family_impersonation") && (has("emergency_pretext") || has("financial_demand"))
+            ? 90
+            : 82;
+      break;
   }
 
   let score: number;
