@@ -274,11 +274,13 @@ function findAll(text: string, def: EntityDef): { matched: string; index: number
     const before = at === 0 ? " " : lower[at - 1];
     const after = at + target.length >= lower.length ? " " : lower[at + target.length];
     const wordChar = /[a-z0-9]/;
-    if (target.length <= 3) {
-      if (wordChar.test(before) || wordChar.test(after)) {
-        from = at + target.length;
-        continue;
-      }
+    // Word-boundary check for all alphanumeric tokens — prevents entities like
+    // "TRAI" from matching inside "train" or "ED" inside "shared". A genuine
+    // mention will always sit at a word boundary, so this doesn't drop any
+    // legitimate hits.
+    if (wordChar.test(before) || wordChar.test(after)) {
+      from = at + target.length;
+      continue;
     }
     hits.push({ matched: text.slice(at, at + target.length), index: at });
     from = at + target.length;
