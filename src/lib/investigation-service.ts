@@ -274,11 +274,13 @@ function findAll(text: string, def: EntityDef): { matched: string; index: number
     const before = at === 0 ? " " : lower[at - 1];
     const after = at + target.length >= lower.length ? " " : lower[at + target.length];
     const wordChar = /[a-z0-9]/;
-    if (target.length <= 3) {
-      if (wordChar.test(before) || wordChar.test(after)) {
-        from = at + target.length;
-        continue;
-      }
+    // Word-boundary check for all alphanumeric tokens — prevents entities like
+    // "TRAI" from matching inside "train" or "ED" inside "shared". A genuine
+    // mention will always sit at a word boundary, so this doesn't drop any
+    // legitimate hits.
+    if (wordChar.test(before) || wordChar.test(after)) {
+      from = at + target.length;
+      continue;
     }
     hits.push({ matched: text.slice(at, at + target.length), index: at });
     from = at + target.length;
@@ -876,6 +878,30 @@ const CATEGORY_LABEL: Record<ScamCategoryId, string> = {
 export function classifyScam(active: Set<IndicatorId>, ctx: AnalysisContext): ScamCategoryId {
   const has = (id: IndicatorId) => active.has(id);
 
+  // Guard: an entity like "package", "ticket", "KYC" or "OTP" appearing on its
+  // own — without any true scam signal (authority, threat, financial demand,
+  // credential request, KYC hook, reward promise, investment pitch, job pitch,
+  // UPI trap, phishing link, isolation, or urgency) — is not a scam. This
+  // prevents benign shipping / booking confirmations from being classified as
+  // Courier / Banking scams via the entity fallback below.
+  const scamSignals: IndicatorId[] = [
+    "authority_impersonation",
+    "financial_demand",
+    "threat",
+    "credential_request",
+    "kyc_hook",
+    "fake_domain",
+    "unknown_website",
+    "reward_promise",
+    "investment_pitch",
+    "job_pitch",
+    "upi_trap",
+    "isolation",
+    "urgency",
+  ];
+  if (!scamSignals.some((id) => active.has(id))) return "safe";
+
+
   // Phishing wins when a real URL/domain vector accompanies a KYC hook.
   if ((has("fake_domain") || (has("unknown_website") && ctx.url.hasUrl)) && has("kyc_hook")) {
     return "phishing";
@@ -1303,7 +1329,7 @@ function buildResult(text: string): InvestigationResult {
 }
 
 // Backwards-compatible alias.
-const buildReport = buildResult;
+export const buildReport = buildResult;
 
 
 /* =========================================================================
