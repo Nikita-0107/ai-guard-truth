@@ -233,6 +233,8 @@ function ThreatIntelligenceCenter() {
   const trends = useTrends();
   const alerts = useAlerts();
   const recent = useRecent();
+  const [activeAlert, setActiveAlert] = useState<any | null>(null);
+
 
   return (
     <SidebarProvider>
