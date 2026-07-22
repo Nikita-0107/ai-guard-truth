@@ -924,9 +924,21 @@ export function classifyScam(active: Set<IndicatorId>, ctx: AnalysisContext): Sc
     "upi_trap",
     "isolation",
     "urgency",
+    "family_impersonation",
+    "emergency_pretext",
   ];
   if (!scamSignals.some((id) => active.has(id))) return "safe";
 
+
+  // Family / friend impersonation with an emergency ask — highest-priority
+  // routing so a "Hi beta, this is uncle" hook doesn't get pulled into
+  // banking / digital-arrest branches.
+  if (
+    has("family_impersonation") &&
+    (has("emergency_pretext") || has("financial_demand") || has("isolation"))
+  ) {
+    return "family_emergency";
+  }
 
   // Phishing wins when a real URL/domain vector accompanies a KYC hook.
   if ((has("fake_domain") || (has("unknown_website") && ctx.url.hasUrl)) && has("kyc_hook")) {
