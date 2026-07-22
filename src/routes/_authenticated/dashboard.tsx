@@ -336,7 +336,7 @@ function ThreatIntelligenceCenter() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-semibold tracking-tight">Trending Scam Types</h2>
-                      <p className="text-xs text-muted-foreground">Share of investigations (last 24h)</p>
+                      <p className="text-xs text-muted-foreground">Investigations volume &amp; 24h change</p>
                     </div>
                     <TrendingUp className="h-4 w-4 text-brand" />
                   </div>
@@ -345,20 +345,43 @@ function ThreatIntelligenceCenter() {
                       ? Array.from({ length: 5 }).map((_, i) => (
                           <div key={i} className="h-6 animate-pulse rounded bg-muted/40" />
                         ))
-                      : (trends.data ?? []).map((t: any) => (
-                          <div key={t.id}>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium">{t.scam_type}</span>
-                              <span className="tabular-nums text-muted-foreground">{Number(t.percentage)}%</span>
+                      : (trends.data ?? []).map((t: any) => {
+                          const pct = Number(t.percentage);
+                          const cases = trendCases(t.id, pct);
+                          const delta = trendDelta(t.id);
+                          const TrendIcon = delta.dir === "up" ? TrendingUp : delta.dir === "down" ? TrendingDown : Minus;
+                          const trendCls =
+                            delta.dir === "up"
+                              ? "bg-destructive/10 text-destructive"
+                              : delta.dir === "down"
+                                ? "bg-emerald-500/10 text-emerald-300"
+                                : "bg-muted text-muted-foreground";
+                          return (
+                            <div key={t.id}>
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{t.scam_type}</span>
+                                  <span className="tabular-nums text-muted-foreground">
+                                    {cases.toLocaleString("en-IN")} cases
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={cn("inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums", trendCls)}>
+                                    <TrendIcon className="h-3 w-3" />
+                                    {delta.dir === "flat" ? "0%" : `${delta.pct}%`}
+                                  </span>
+                                  <span className="tabular-nums text-xs text-muted-foreground">{pct}%</span>
+                                </div>
+                              </div>
+                              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className={cn("h-full rounded-full bg-gradient-to-r", t.color ?? "from-brand to-brand")}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
                             </div>
-                            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                              <div
-                                className={cn("h-full rounded-full bg-gradient-to-r", t.color ?? "from-brand to-brand")}
-                                style={{ width: `${Number(t.percentage)}%` }}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                   </div>
                 </div>
 
@@ -375,12 +398,20 @@ function ThreatIntelligenceCenter() {
                       ? Array.from({ length: 4 }).map((_, i) => (
                           <div key={i} className="h-20 animate-pulse rounded-xl bg-muted/30" />
                         ))
-                      : (alerts.data ?? []).slice(0, 4).map((a: any) => {
+                      : (alerts.data ?? []).slice(0, 4).map((a: any, idx: number) => {
                           const sev = SEVERITY_STYLES[a.severity] ?? SEVERITY_STYLES.medium;
+                          const source = alertSource(a.id);
+                          const confidence = alertConfidence(a.id, a.severity);
+                          const offset = alertOffset(a.id, idx);
+                          const intel =
+                            (INTEL_DESCRIPTIONS[a.scam_type]?.(a.city)) ??
+                            a.description ??
+                            `Elevated ${a.scam_type} activity reported in ${a.city}. Analyst review in progress.`;
                           return (
-                            <div
+                            <button
                               key={a.id}
-                              className="group rounded-xl border border-border/40 bg-card/40 p-4 transition hover:border-brand/30"
+                              onClick={() => setActiveAlert({ ...a, source, confidence, offset, intel })}
+                              className="group w-full rounded-xl border border-border/40 bg-card/40 p-4 text-left transition hover:border-brand/40 hover:bg-card/60"
                             >
                               <div className="flex items-center gap-2">
                                 <span className={cn("h-2 w-2 rounded-full", sev.dot)} />
@@ -389,14 +420,21 @@ function ThreatIntelligenceCenter() {
                                   {sev.label}
                                 </span>
                               </div>
-                              <p className="mt-1.5 text-sm text-muted-foreground">{a.title}</p>
-                              <p className="mt-2 text-[11px] text-muted-foreground/70">{relativeTime(a.timestamp)}</p>
-                            </div>
+                              <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{intel}</p>
+                              <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground/80">
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="rounded bg-muted/60 px-1.5 py-0.5 font-medium text-foreground/80">{source}</span>
+                                  <span className="tabular-nums">· {confidence}% conf.</span>
+                                </span>
+                                <span className="tabular-nums">{recentLabel(offset)}</span>
+                              </div>
+                            </button>
                           );
                         })}
                   </div>
                 </div>
               </section>
+
 
               {/* Quick Actions */}
               <section>
