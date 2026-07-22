@@ -509,7 +509,62 @@ function ThreatIntelligenceCenter() {
           </main>
         </div>
       </div>
+
+      <Dialog open={!!activeAlert} onOpenChange={(o) => !o && setActiveAlert(null)}>
+        <DialogContent className="glass max-w-lg border-border/60">
+          {activeAlert && (() => {
+            const sev = SEVERITY_STYLES[activeAlert.severity] ?? SEVERITY_STYLES.medium;
+            const action = RECOMMENDED_ACTIONS[activeAlert.severity] ?? RECOMMENDED_ACTIONS.medium;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-2">
+                    <span className={cn("h-2 w-2 rounded-full", sev.dot)} />
+                    <span className={cn("rounded-md border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", sev.badge)}>
+                      {sev.label}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">Alert ID · {String(activeAlert.id).slice(0, 8).toUpperCase()}</span>
+                  </div>
+                  <DialogTitle className="mt-2 text-xl">{activeAlert.title}</DialogTitle>
+                  <DialogDescription className="text-muted-foreground">
+                    {recentLabel(activeAlert.offset)} · Reported by {activeAlert.source}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                  <DetailField label="Region" value={`${activeAlert.city}${activeAlert.state ? `, ${activeAlert.state}` : ""}`} />
+                  <DetailField label="Scam Type" value={activeAlert.scam_type} />
+                  <DetailField label="Severity" value={sev.label} />
+                  <DetailField label="Source" value={activeAlert.source} />
+                  <DetailField label="Confidence" value={`${activeAlert.confidence}%`} />
+                  <DetailField label="First Seen" value={recentLabel(activeAlert.offset)} />
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Summary</p>
+                    <p className="mt-1 text-sm leading-relaxed">{activeAlert.intel}</p>
+                  </div>
+                  <div className="rounded-lg border border-brand/25 bg-brand/5 p-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-brand">Recommended Action</p>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/90">{action}</p>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/40 bg-card/40 p-3">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-1 font-medium">{value}</p>
+    </div>
   );
 }
 
