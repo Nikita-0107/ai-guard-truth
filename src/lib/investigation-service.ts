@@ -588,6 +588,7 @@ const PATTERN_RULES: PatternRule[] = [
   { id: "threat", regex: /\barrest\s+warrant\b/i, reason: () => `"arrest warrant" — impersonators use fabricated warrants to force payment.`, suppressOnWarning: true },
   { id: "threat", regex: /\bnon[- ]?bailable\b/i, reason: () => `"non-bailable" language is a coercion tactic.`, suppressOnWarning: true },
   { id: "threat", regex: /\baccount\s+(?:will\s+be|has\s+been|is\s+being)?\s*(?:blocked|frozen|suspended|deactivated|closed)\b/i, reason: (m) => `Threat "${m}" — a fake account-block warning is a standard scam hook.`, suppressOnWarning: true },
+  { id: "threat", regex: /\b(?:frozen|blocked|suspended|seized|held)\s+your\s+account\b/i, reason: (m) => `Threat "${m}" — impersonated account-freeze is a Digital Arrest / KYC hook.`, suppressOnWarning: true },
   { id: "threat", regex: /\b(?:parcel|package|shipment)\s+(?:has\s+been\s+)?(?:seized|held|detained)\b/i, reason: (m) => `Threat "${m}" — invented seizure to justify a fee.`, suppressOnWarning: true },
   { id: "threat", regex: /\bmoney\s+laundering\b/i, reason: () => `"money laundering" accusation is a Digital Arrest signature.`, suppressOnWarning: true },
   { id: "threat", regex: /\billegal\s+(?:goods|items|substances|drugs)\b/i, reason: (m) => `"${m}" — courier-scam framing that pivots to a fake authority.`, suppressOnWarning: true },
