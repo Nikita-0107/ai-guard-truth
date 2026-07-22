@@ -882,7 +882,7 @@ export function classifyScam(active: Set<IndicatorId>, ctx: AnalysisContext): Sc
   }
 
   // Courier pretext (requires a scam signal — bare "package" doesn't count).
-  if (has("courier_pretext") && (has("threat") || has("financial_demand") || has("authority_impersonation") || has("urgency"))) {
+  if (has("courier_pretext") && (has("threat") || has("financial_demand") || has("authority_impersonation"))) {
     return "courier";
   }
 
