@@ -405,6 +405,7 @@ export function UploadPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [openCategory, setOpenCategory] = useState<SampleCategory | null>(null);
 
   const current = TYPES.find((t) => t.id === selected)!;
 
@@ -419,10 +420,11 @@ export function UploadPanel() {
     return () => clearInterval(id);
   }, [submitting]);
 
-  const pickExample = (ex: Example) => {
-    setSelected(ex.type);
-    setContent(ex.message);
+  const pickSample = (sample: Sample) => {
+    setSelected(sample.type);
+    setContent(sample.message);
     setFile(null);
+    setOpenCategory(null);
     if (typeof window !== "undefined") {
       requestAnimationFrame(() => {
         document
@@ -431,6 +433,14 @@ export function UploadPanel() {
       });
     }
   };
+
+  const pickRandom = (pool: Sample[]) => {
+    if (pool.length === 0) return;
+    const s = pool[Math.floor(Math.random() * pool.length)];
+    pickSample(s);
+  };
+
+
 
   const handleSubmit = async () => {
     if (selected === "image" && !file) {
