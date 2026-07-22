@@ -331,6 +331,10 @@ const WARNING_CUES = [
   "keep your password",
   "if someone asks",
   "if anyone asks",
+  "warns citizens",
+  "awareness",
+  "government warns",
+  "public awareness",
 ];
 
 const REQUEST_CUES = [
@@ -570,11 +574,97 @@ function addIndicator(
   });
 }
 
+/* Regex-based pattern indicators — catches phrases that filler words defeat
+   ("account will be blocked", "arrest warrant", "reply with the OTP", …). */
+interface PatternRule {
+  id: IndicatorId;
+  regex: RegExp;
+  reason: (m: string) => string;
+  /** If a WARNING_CUE appears anywhere in text, skip this pattern. */
+  suppressOnWarning?: boolean;
+}
+
+const PATTERN_RULES: PatternRule[] = [
+  // Authority impersonation with role/action
+  { id: "authority_impersonation", regex: /\b(cbi|ed|enforcement directorate|mumbai police|delhi police|cyber cell|cyber crime|crime branch|income tax dept|customs department|rbi officer)\b/i, reason: (m) => `"${m}" is presented as the sender — real agencies never contact citizens over SMS/WhatsApp.`, suppressOnWarning: true },
+
+  // Threats — with filler words
+  { id: "threat", regex: /\barrest\s+warrant\b/i, reason: () => `"arrest warrant" — impersonators use fabricated warrants to force payment.`, suppressOnWarning: true },
+  { id: "threat", regex: /\bnon[- ]?bailable\b/i, reason: () => `"non-bailable" language is a coercion tactic.`, suppressOnWarning: true },
+  { id: "threat", regex: /\baccount\s+(?:will\s+be|has\s+been|is\s+being)?\s*(?:blocked|frozen|suspended|deactivated|closed)\b/i, reason: (m) => `Threat "${m}" — a fake account-block warning is a standard scam hook.`, suppressOnWarning: true },
+  { id: "threat", regex: /\b(?:frozen|blocked|suspended|seized|held)\s+your\s+account\b/i, reason: (m) => `Threat "${m}" — impersonated account-freeze is a Digital Arrest / KYC hook.`, suppressOnWarning: true },
+  { id: "threat", regex: /\b(?:parcel|package|shipment)\s+(?:has\s+been\s+)?(?:seized|held|detained)\b/i, reason: (m) => `Threat "${m}" — invented seizure to justify a fee.`, suppressOnWarning: true },
+  { id: "threat", regex: /\bmoney\s+laundering\b/i, reason: () => `"money laundering" accusation is a Digital Arrest signature.`, suppressOnWarning: true },
+  { id: "threat", regex: /\billegal\s+(?:goods|items|substances|drugs)\b/i, reason: (m) => `"${m}" — courier-scam framing that pivots to a fake authority.`, suppressOnWarning: true },
+  { id: "threat", regex: /\bavoid\s+arrest\b/i, reason: () => `"avoid arrest" — direct coercion language.`, suppressOnWarning: true },
+  { id: "threat", regex: /\blegal\s+action\b/i, reason: () => `"legal action" threat.`, suppressOnWarning: true },
+
+  // Financial demand — filler words
+  { id: "financial_demand", regex: /\b(?:transfer|send|pay|wire|deposit)\s+(?:₹|rs\.?\s*|inr\s*)\s*\d[\d,]*/i, reason: (m) => `Direct money demand "${m}" — the ultimate goal of the scam.`, suppressOnWarning: true },
+  { id: "financial_demand", regex: /\bpay\s+(?:to|now|immediately|handling|clearance|customs|processing|security)\b/i, reason: (m) => `"${m}" — direct payment demand.`, suppressOnWarning: true },
+  { id: "financial_demand", regex: /\b(?:send|transfer)\s+money\b/i, reason: (m) => `"${m}" — direct financial demand.`, suppressOnWarning: true },
+  { id: "financial_demand", regex: /\b(?:processing|registration|security|handling|clearance|customs|refundable|advance)\s+(?:fee|deposit|charge|charges)\b/i, reason: (m) => `Fake up-front fee "${m}".`, suppressOnWarning: true },
+  { id: "financial_demand", regex: /\bpay\s+₹\s*\d/i, reason: (m) => `"${m}" — explicit payment demand.`, suppressOnWarning: true },
+
+  // Credential requests — filler words allowed
+  { id: "credential_request", regex: /\b(?:share|send|reply\s+with|tell\s+(?:me|us)|give\s+(?:me|us)|provide|confirm|type|enter)\s+(?:the\s+|your\s+|me\s+)?(?:otp|one[- ]time\s+password|verification\s+code|pin|cvv|password|passcode)\b/i, reason: (m) => `Explicit credential request: "${m}" — no legitimate business ever asks for these.`, suppressOnWarning: true },
+  { id: "credential_request", regex: /\botp\s+(?:to|for|now)\b/i, reason: (m) => `"${m}" — the message routes an OTP into the scammer's hands.`, suppressOnWarning: true },
+
+  // KYC hooks
+  { id: "kyc_hook", regex: /\bupdate\s+(?:your\s+)?(?:kyc|pan|aadhaar|account\s+details)\b/i, reason: (m) => `Fake KYC prompt "${m}" — banks handle this only inside their own app.`, suppressOnWarning: true },
+  { id: "kyc_hook", regex: /\b(?:re[- ]?activate|reactivate|verify)\s+(?:your\s+|the\s+)?account\b/i, reason: (m) => `"${m}" is a classic banking-scam hook.`, suppressOnWarning: true },
+  { id: "kyc_hook", regex: /\bkyc\s+(?:has\s+)?(?:expired|pending|update|update\s+required)\b/i, reason: (m) => `"${m}" — fake KYC expiry pressure.`, suppressOnWarning: true },
+
+  // Reward promises
+  { id: "reward_promise", regex: /\bwon\s+(?:₹|rs\.?|inr)?\s*\d[\d,]*\s*(?:lakh|crore|thousand)?/i, reason: (m) => `Unexpected prize claim "${m}" — you cannot win a draw you never entered.` },
+  { id: "reward_promise", regex: /\bcongratulations\b.*(?:won|winner|selected|prize)/i, reason: () => `"Congratulations… you won/selected" — classic lottery-scam opener.` },
+  { id: "reward_promise", regex: /\b(?:claim\s+your\s+)?(?:lottery|lucky\s+draw|cash\s+prize|international\s+prize)\b/i, reason: (m) => `Lottery lure "${m}".` },
+
+  // Investment
+  { id: "investment_pitch", regex: /\b(?:guaranteed|assured|fixed)\s+(?:returns?|profits?|income)\b/i, reason: (m) => `"${m}" — no real market offers guaranteed returns.` },
+  { id: "investment_pitch", regex: /\bdouble\s+your\s+money\b/i, reason: () => `"double your money" — signature investment-fraud promise.` },
+  { id: "investment_pitch", regex: /\b\d{2,}%\s*(?:weekly|daily|monthly|guaranteed)\s*returns?/i, reason: (m) => `Implausible returns "${m}".` },
+  { id: "investment_pitch", regex: /\b(?:whatsapp|telegram)\s+(?:investment|trading|stock)\s+group\b/i, reason: (m) => `"${m}" — SEBI advisors don't recruit via WhatsApp/Telegram.` },
+  { id: "investment_pitch", regex: /\bzero\s+risk\b/i, reason: () => `"zero risk" — no legitimate investment carries zero risk.` },
+
+  // Job scams
+  { id: "job_pitch", regex: /\bearn\s+(?:₹|rs\.?)?\s*\d[\d,]*\s*(?:daily|per\s+day|weekly|from\s+home)?/i, reason: (m) => `Unrealistic income promise "${m}".` },
+  { id: "job_pitch", regex: /\b(?:immediate|instant)\s+hiring\b/i, reason: (m) => `"${m}" with an up-front fee is a task-fraud pattern.` },
+  { id: "job_pitch", regex: /\bpart[- ]time\s+job\b.*(?:fee|deposit|registration)/i, reason: () => `Part-time job requiring a fee — task-fraud signature.` },
+  { id: "job_pitch", regex: /\bappointment\s+letter\b/i, reason: () => `"appointment letter" tied to a deposit is a job-scam signature.` },
+
+  // UPI traps
+  { id: "upi_trap", regex: /\b(?:approve|accept)\s+(?:this|the)\s+(?:upi\s+)?collect\s+request\b/i, reason: (m) => `"${m}" — approving debits your account, it never credits.` },
+  { id: "upi_trap", regex: /\bcollect\s+request\b/i, reason: () => `A UPI "collect request" from a stranger only debits you.` },
+  { id: "upi_trap", regex: /\bscan\s+(?:this|the)\s+qr\s+code\b/i, reason: (m) => `"${m}" — scanning to *receive* money is impossible on UPI; it only sends.` },
+  { id: "upi_trap", regex: /\baccept\s+the\s+collect\s+request\s+to\s+claim/i, reason: () => `"accept collect request to claim…" — the request debits you, never credits.` },
+
+  // Phishing / unknown links
+  { id: "unknown_website", regex: /\bclick\s+(?:here|the\s+link|below|on\s+the\s+link)\b/i, reason: (m) => `"${m}" — vague link directives are classic phishing bait.`, suppressOnWarning: true },
+  { id: "unknown_website", regex: /\bverify\s+(?:now|today)?\s+using\s+this\s+link\b/i, reason: (m) => `"${m}" — an unverified link is a phishing red flag.`, suppressOnWarning: true },
+  { id: "unknown_website", regex: /\bsecure\s+(?:banking|login)\s+link\b/i, reason: (m) => `"${m}" — fake secure-banking wording.`, suppressOnWarning: true },
+
+  // Urgency filler
+  { id: "urgency", regex: /\btoday\b.*(?:unless|otherwise|or\s+else)/i, reason: () => `"today unless…" — deadline coercion.` },
+  { id: "urgency", regex: /\bbefore\s+midnight\b/i, reason: () => `"before midnight" — artificial deadline.` },
+  { id: "urgency", regex: /\bwithin\s+\d+\s+(?:minutes|hours)\b/i, reason: (m) => `"${m}" — artificial deadline pressure.` },
+
+  // Isolation
+  { id: "isolation", regex: /\bdo\s+not\s+(?:tell|inform|disclose\s+to)\s+anyone\b/i, reason: (m) => `"${m}" — isolates the target from help.` },
+  { id: "isolation", regex: /\bstay\s+on\s+(?:this|the)\s+call\b/i, reason: (m) => `"${m}" — prevents the target from hanging up to verify.` },
+];
+
+function anyWarning(text: string): boolean {
+  const lower = text.toLowerCase();
+  return WARNING_CUES.some((c) => lower.includes(c));
+}
+
 function buildIndicators(text: string): AnalysisContext {
   const entities = extractEntities(text);
   const intents = new Map<Entity, Intent>();
   const url = analyzeUrl(text);
   const ctx: AnalysisContext = { text, entities, intents, url, indicators: [] };
+  const warningPresent = anyWarning(text);
 
   for (const e of entities) {
     const intent = detectIntent(text, e);
@@ -633,16 +723,7 @@ function buildIndicators(text: string): AnalysisContext {
             e.matched,
             `The message asks the target to share "${e.matched}". No legitimate business ever needs this.`,
           );
-        } else if (intent === "neutral") {
-          // Neutral mention of OTP/PIN/password is still mildly suspicious in an unsolicited message
-          addIndicator(
-            ctx,
-            "credential_request",
-            e.matched,
-            `"${e.matched}" appears in the message — unsolicited references to credentials are a common scam vector.`,
-          );
         }
-        // "warning" intent → do not add; message is protective
         break;
       case "kyc":
         if (intent !== "warning") {
@@ -700,6 +781,15 @@ function buildIndicators(text: string): AnalysisContext {
     }
   }
 
+  // Regex-based pattern layer — the heart of contextual reasoning.
+  for (const rule of PATTERN_RULES) {
+    if (rule.suppressOnWarning && warningPresent) continue;
+    const m = text.match(rule.regex);
+    if (m) {
+      addIndicator(ctx, rule.id, m[0], rule.reason(m[0]));
+    }
+  }
+
   // Website indicators
   if (url.hasUrl && !url.isKnownSafe) {
     if (url.suspiciousTld) {
@@ -749,11 +839,17 @@ export function calculateRisk(ctx: AnalysisContext): {
   let score = 0;
   for (const id of unique) score += INDICATOR_WEIGHT[id];
 
-  // Single-indicator dampening: one indicator alone rarely justifies "critical".
-  if (unique.size === 1) score = Math.min(score, 35);
-  else if (unique.size === 2) score = Math.min(score, 65);
+  // Softer dampening: a single weak indicator shouldn't scream "critical",
+  // but any two independent indicators can push into high/critical bands.
+  if (unique.size === 1) {
+    const only = [...unique][0]!;
+    // Strong solo indicators (a direct credential request, financial demand, or
+    // fake domain) legitimately warrant a high band on their own.
+    const soloStrong: IndicatorId[] = ["credential_request", "financial_demand", "fake_domain", "upi_trap"];
+    if (!soloStrong.includes(only)) score = Math.min(score, 45);
+    else score = Math.min(score, 78);
+  }
 
-  // Cap
   score = Math.max(0, Math.min(100, score));
   return { score, activeIndicators: [...unique] };
 }
@@ -780,39 +876,29 @@ const CATEGORY_LABEL: Record<ScamCategoryId, string> = {
 export function classifyScam(active: Set<IndicatorId>, ctx: AnalysisContext): ScamCategoryId {
   const has = (id: IndicatorId) => active.has(id);
 
-  // Digital Arrest requires the combination: authority + threat + (financial | isolation)
-  if (
-    has("authority_impersonation") &&
-    has("threat") &&
-    (has("financial_demand") || has("isolation"))
-  ) {
-    return "digital_arrest";
+  // Phishing wins when a real URL/domain vector accompanies a KYC hook.
+  if ((has("fake_domain") || (has("unknown_website") && ctx.url.hasUrl)) && has("kyc_hook")) {
+    return "phishing";
   }
 
+  // Courier pretext (requires a scam signal — bare "package" doesn't count).
   if (has("courier_pretext") && (has("threat") || has("financial_demand") || has("authority_impersonation"))) {
     return "courier";
   }
 
-  if (has("reward_promise") && (has("financial_demand") || has("urgency"))) {
-    return "lottery";
-  }
-
-  if (has("investment_pitch") && (has("financial_demand") || has("urgency") || has("reward_promise"))) {
-    return "investment";
-  }
-
-  if (has("job_pitch") && (has("financial_demand") || has("reward_promise"))) {
-    return "job";
-  }
-
-  if (has("kyc_hook") || (has("authority_impersonation") && (has("unknown_website") || has("fake_domain")))) {
-    return "banking_kyc";
+  // Digital Arrest: authority + (threat | isolation | direct money demand).
+  if (has("authority_impersonation") && (has("threat") || has("isolation") || has("financial_demand"))) {
+    return "digital_arrest";
   }
 
   if (has("upi_trap")) return "upi";
-
+  if (has("investment_pitch")) return "investment";
+  if (has("reward_promise")) return "lottery";
+  if (has("job_pitch")) return "job";
+  if (has("kyc_hook") || (has("authority_impersonation") && (has("unknown_website") || has("fake_domain")))) {
+    return "banking_kyc";
+  }
   if (has("credential_request")) return "otp";
-
   if (has("fake_domain") || has("unknown_website")) return "phishing";
 
   // Weak single signals
@@ -1141,12 +1227,55 @@ function buildResult(text: string): InvestigationResult {
 
   const ctx = buildIndicators(text);
   const { score: rawScore, activeIndicators } = calculateRisk(ctx);
+  const activeSet = new Set(activeIndicators);
   const detectedTypeId: ScamCategoryId =
-    activeIndicators.length === 0 ? "safe" : classifyScam(new Set(activeIndicators), ctx);
+    activeIndicators.length === 0 ? "safe" : classifyScam(activeSet, ctx);
 
-  // If no indicators fired, force the score into the safe band.
-  const score = detectedTypeId === "safe" ? Math.min(rawScore, 15) : rawScore;
+  // Category-based score floor: once a specific scam pattern is cleanly
+  // identified (its signature indicator combination fires), we're confident
+  // enough to place the score in the "High" or "Critical" band rather than
+  // leaving it in the mid range where the UI would still call it "Possible".
+  const has = (id: IndicatorId) => activeSet.has(id);
+  let floor = 0;
+  switch (detectedTypeId) {
+    case "digital_arrest":
+      floor = has("authority_impersonation") && has("threat") ? 92 : 88;
+      break;
+    case "courier":
+      floor = has("financial_demand") || has("threat") ? 90 : 82;
+      break;
+    case "banking_kyc":
+      floor = has("kyc_hook") && (has("urgency") || has("threat") || has("unknown_website")) ? 90 : 82;
+      break;
+    case "otp":
+      floor = has("credential_request") ? 90 : 78;
+      break;
+    case "investment":
+      floor = has("investment_pitch") ? 88 : 78;
+      break;
+    case "lottery":
+      floor = has("reward_promise") ? 88 : 78;
+      break;
+    case "job":
+      floor = has("job_pitch") ? 85 : 76;
+      break;
+    case "upi":
+      floor = has("upi_trap") ? 88 : 78;
+      break;
+    case "phishing":
+      floor = has("fake_domain") ? 92 : has("unknown_website") ? 78 : 65;
+      break;
+  }
+
+  let score: number;
+  if (detectedTypeId === "safe") {
+    score = Math.min(rawScore, 15);
+  } else {
+    score = Math.max(rawScore, floor);
+    score = Math.min(100, score);
+  }
   const band = decideBand(score, detectedTypeId);
+
 
   // Recommendations & DNA come from the banded id so cards stay consistent
   // with the headline verdict (e.g. a medium score shows "Possible Scam"
