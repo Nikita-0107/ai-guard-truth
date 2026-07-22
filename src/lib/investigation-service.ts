@@ -663,6 +663,28 @@ const PATTERN_RULES: PatternRule[] = [
   { id: "isolation", regex: /\bstay\s+on\s+(?:this|the)\s+call\b/i, reason: (m) => `"${m}" — prevents the target from hanging up to verify.` },
 ];
 
+  // Isolation
+  { id: "isolation", regex: /\bdo\s+not\s+(?:tell|inform|disclose\s+to)\s+anyone\b/i, reason: (m) => `"${m}" — isolates the target from help.` },
+  { id: "isolation", regex: /\bstay\s+on\s+(?:this|the)\s+call\b/i, reason: (m) => `"${m}" — prevents the target from hanging up to verify.` },
+
+  // Family / friend impersonation (scammer poses as a relative or close contact)
+  { id: "family_impersonation", regex: /\b(?:hi|hello|hey)\s+(?:beta|beti|bhai|bhaiya|didi|dear|son|daughter|dad|mom|mummy|papa)\b/i, reason: (m) => `"${m}" — impersonators open with a familiar family address to bypass suspicion.` },
+  { id: "family_impersonation", regex: /\bthis\s+is\s+(?:your\s+)?(?:uncle|aunt(?:y|ie)?|cousin|nephew|niece|brother|sister|dad|mom|mummy|papa|grand(?:pa|ma|father|mother))\b/i, reason: (m) => `"${m}" — claims to be a specific relative without proof of identity.` },
+  { id: "family_impersonation", regex: /\b(?:lost\s+my\s+phone|(?:using|from)\s+(?:a\s+)?(?:friend'?s|new)\s+(?:phone|number)|this\s+is\s+my\s+new\s+number|old\s+number\s+(?:is\s+)?(?:not\s+working|dead|off))\b/i, reason: (m) => `"${m}" — a "new number" pretext is how impersonators explain why the contact looks unfamiliar.` },
+  { id: "family_impersonation", regex: /\b(?:don'?t|do\s+not)\s+call\b/i, reason: (m) => `"${m}" — telling the target not to call back blocks voice verification.` },
+  { id: "family_impersonation", regex: /\bphone\s+(?:is\s+)?(?:off|dead|switched\s+off|not\s+working|broken)\b/i, reason: (m) => `"${m}" — a "phone is off" excuse prevents the target from confirming the sender's real voice.` },
+
+  // Emergency pretext (medical/travel/accident) — pairs with family impersonation
+  { id: "emergency_pretext", regex: /\bmedical\s+emergency\b/i, reason: () => `"medical emergency" — the go-to hook that pressures instant transfers.` },
+  { id: "emergency_pretext", regex: /\b(?:stuck|stranded)\s+(?:at|in)\s+(?:the\s+)?(?:airport|hospital|station|border|police\s+station)\b/i, reason: (m) => `"${m}" — invented stranding is a scripted emergency-scam beat.` },
+  { id: "emergency_pretext", regex: /\burgently\s+need\b/i, reason: () => `"urgently need" — manufactured urgency to skip verification.` },
+  { id: "emergency_pretext", regex: /\bneed\s+(?:₹|rs\.?|inr)?\s*\d[\d,]*\s+(?:urgently|immediately|right\s+now|asap)\b/i, reason: (m) => `"${m}" — urgent money ask without prior context.` },
+
+  // Family-emergency money asks (informal transfer phrasing the standard financial_demand regex misses)
+  { id: "financial_demand", regex: /\b(?:please\s+)?(?:transfer|send)\s+(?:it\s+)?(?:to\s+)?(?:this\s+)?(?:upi|account|number|a\/c)\b/i, reason: (m) => `"${m}" — routes money to an account the target can't verify.`, suppressOnWarning: true },
+  { id: "financial_demand", regex: /\bi'?ll\s+return\s+it\s+tomorrow\b/i, reason: () => `"I'll return it tomorrow" — the classic false promise used in emergency-impersonation scams.`, suppressOnWarning: true },
+];
+
 function anyWarning(text: string): boolean {
   const lower = text.toLowerCase();
   return WARNING_CUES.some((c) => lower.includes(c));
