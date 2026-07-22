@@ -331,6 +331,10 @@ const WARNING_CUES = [
   "keep your password",
   "if someone asks",
   "if anyone asks",
+  "warns citizens",
+  "awareness",
+  "government warns",
+  "public awareness",
 ];
 
 const REQUEST_CUES = [
