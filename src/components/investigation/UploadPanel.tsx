@@ -16,10 +16,22 @@ import {
   Brain,
   ListChecks,
   Check,
+  Landmark,
+  Package,
+  FileText,
+  Dice5,
+  Shuffle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { analyzeText, type InvestigationType } from "@/lib/investigation-service";
 import { toast } from "sonner";
