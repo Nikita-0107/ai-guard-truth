@@ -1444,6 +1444,11 @@ const FOLLOW_UPS: Record<ScamCategoryId, string[]> = {
     "Was the domain slightly different from the real brand (e.g. missing/extra letter)?",
     "Did you already enter any credentials on the page?",
   ],
+  family_emergency: [
+    "Did the sender claim they lost their phone or are on a 'new number'?",
+    "Did they refuse a voice call or say their phone is switched off?",
+    "Did they push you to transfer money to an unfamiliar UPI ID or account?",
+  ],
   suspicious: [
     "What made this message feel off to you?",
     "Have you received similar messages from this sender before?",
