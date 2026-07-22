@@ -52,6 +52,7 @@ export type ScamCategoryId =
   | "upi"
   | "job"
   | "phishing"
+  | "family_emergency"
   | "suspicious"
   | "possible_scam"
   | "safe";
