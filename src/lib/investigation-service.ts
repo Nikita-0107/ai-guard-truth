@@ -1081,7 +1081,12 @@ const RECS_BY_CATEGORY: Record<ScamCategoryId, Recommendation[]> = {
     { title: "Verify the company", description: "Search the company name plus 'scam' before engaging.", urgency: "warn" },
     { title: "Report the sender", description: "Report the number in-app and to cybercrime.gov.in if money was lost.", urgency: "info" },
   ],
-  phishing: [
+  family_emergency: [
+    { title: "Do not send any money", description: "The classic beat of this scam is a family member in distress asking for an instant transfer. Stop before you pay.", urgency: "critical" },
+    { title: "Verify by calling the person on their known number", description: "Even if the message says 'phone is off' or 'don't call', dial the relative's real number or a shared family member to confirm.", urgency: "critical" },
+    { title: "Never trust a new UPI ID or account claimed by a 'relative'", description: "Impersonators route funds to their own UPI/account. Ask a control question only the real person would know.", urgency: "warn" },
+    { title: "Report the number", description: "If money was sent, call 1930 within 24 hours and file a complaint at cybercrime.gov.in.", urgency: "warn" },
+  ],
     { title: "Do not enter credentials", description: "Close the page immediately. Do not submit anything.", urgency: "critical" },
     { title: "Verify the URL", description: "Compare the domain character-by-character with the real brand's site.", urgency: "warn" },
     { title: "Report the link", description: "Report it to Google Safe Browsing and to the brand being impersonated.", urgency: "info" },
