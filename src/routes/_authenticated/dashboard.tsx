@@ -93,6 +93,82 @@ function relativeTime(iso: string): string {
   return `${d} day${d === 1 ? "" : "s"} ago`;
 }
 
+// Deterministic pseudo-random from string
+function hashSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 0xffffffff;
+}
+
+// Intelligence source pool
+const SOURCES = ["Cyber Crime Cell", "Partner Bank", "Citizen Reports", "CERT-In", "Telecom Partner"];
+
+// Realistic recent offsets in minutes for the alert feed
+const RECENT_OFFSETS_MIN = [4, 18, 47, 92, 165, 320, 540, 780];
+
+function recentLabel(mins: number): string {
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 24 * 60) {
+    const h = Math.round(mins / 60);
+    return `${h} hr ago`;
+  }
+  const d = new Date(Date.now() - mins * 60_000);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `Today ${hh}:${mm}`;
+}
+
+// Intelligence-style descriptions per scam type
+const INTEL_DESCRIPTIONS: Record<string, (city: string) => string> = {
+  "Digital Arrest": (c) => `Coordinated impersonation cluster active in ${c}: suspects posing as CBI/Customs officers using spoofed video calls to coerce victims into "verification" transfers.`,
+  "UPI Fraud": (c) => `Spike in UPI collect-request fraud detected across ${c} — attackers weaponising QR "refund" flows on OLX/Quikr listings.`,
+  "Banking Scam": (c) => `Rising vishing campaign in ${c} impersonating bank fraud teams; targets high-value savings accounts within 2h of OTP capture.`,
+  "OTP Scam": (c) => `SIM-swap and OTP relay attempts up sharply in ${c}; correlated to leaked KYC dumps circulating on Telegram.`,
+  "Courier Scam": (c) => `FedEx/DHL parcel-hold pretext calls surging in ${c}, funnelling victims to fake "narcotics case" digital arrest chains.`,
+  "Investment Scam": (c) => `Fraudulent trading groups on WhatsApp/Telegram recruiting ${c} residents; front-end mimics Zerodha/Groww with fake P&L dashboards.`,
+  "Job Scam": (c) => `Fake work-from-home task scams active in ${c} — small initial payouts followed by ₹50k+ "unlock fee" demands.`,
+  "Lottery Scam": (c) => `KBC/Kaun Banega Crorepati lottery pretext resurfacing in ${c} via WhatsApp voice notes.`,
+};
+
+const RECOMMENDED_ACTIONS: Record<string, string> = {
+  critical: "Escalate to Cyber Crime Cell within 1 hour. Freeze linked mule accounts, issue regional advisory, and push alert to partner bank fraud desks.",
+  high: "Circulate advisory to field officers and partner banks. Monitor associated numbers and UPI handles for 24h.",
+  medium: "Log for trend analysis. Add indicators to watch-list and review in next daily briefing.",
+};
+
+function alertSource(id: string): string {
+  return SOURCES[Math.floor(hashSeed(id + "src") * SOURCES.length)];
+}
+function alertConfidence(id: string, severity: string): number {
+  const base = severity === "critical" ? 88 : severity === "high" ? 78 : 68;
+  return Math.min(99, base + Math.floor(hashSeed(id + "conf") * 11));
+}
+function alertOffset(id: string, idx: number): number {
+  const base = RECENT_OFFSETS_MIN[idx % RECENT_OFFSETS_MIN.length];
+  const jitter = Math.floor(hashSeed(id + "off") * 6) - 3;
+  return Math.max(2, base + jitter);
+}
+
+// Trending scam types augmentation
+function trendCases(id: string, pct: number): number {
+  // Total daily investigations across trends anchored around ~6.2k, distribute by %
+  const total = 6240;
+  const base = Math.round((pct / 100) * total);
+  const jitter = Math.floor(hashSeed(id + "cases") * 80) - 40;
+  return Math.max(50, base + jitter);
+}
+function trendDelta(id: string): { dir: "up" | "down" | "flat"; pct: number } {
+  const r = hashSeed(id + "delta");
+  if (r < 0.15) return { dir: "flat", pct: 0 };
+  if (r < 0.65) return { dir: "up", pct: Math.round(4 + r * 30) };
+  return { dir: "down", pct: Math.round(3 + (r - 0.65) * 22) };
+}
+
+
+
 function useMetrics() {
   return useQuery({
     queryKey: ["threat_metrics"],
